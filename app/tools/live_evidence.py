@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import re
 
+from app.models.cloud_infrastructure import GoogleCloudObservation
 from app.models.repository_inspection import RepositoryArtifact, RepositoryInspectionOutput
 from app.models.rules_extraction import ExtractedRequirement
 from app.models.schemas import Evidence, EvidenceStatus, Finding, RequirementType, Severity
@@ -76,10 +77,22 @@ def _missing(
     )
 
 
+def _firestore_evidence(observation: GoogleCloudObservation) -> Evidence:
+    return Evidence(
+        source="google_cloud",
+        path_or_url=observation.resource,
+        observed_value=(
+            f"Verified {observation.service} operation in project "
+            f"{observation.project_id}: {observation.detail}"
+        ),
+    )
+
+
 def map_live_requirement(
     requirement: ExtractedRequirement,
     repository: RepositoryInspectionOutput,
     deployment: DeploymentObservation,
+    cloud_infrastructure: GoogleCloudObservation | None = None,
 ) -> Finding:
     text = requirement.requirement_text.lower()
     artifacts = _artifact_index(repository)
@@ -182,8 +195,59 @@ def map_live_requirement(
             "Add and use a supported Google agent framework, then rerun inspection.",
         )
 
+    if "google cloud" in text and "infrastructure" in text:
+        if deployment.reachable and deployment.google_cloud_runtime:
+            return Finding(
+                requirement_id=requirement.requirement_id,
+                requirement_text=requirement.requirement_text,
+                requirement_type=requirement.requirement_type,
+                status=EvidenceStatus.VERIFIED,
+                severity=Severity.PASS,
+                evidence=[
+                    Evidence(
+                        source="deployment",
+                        path_or_url=deployment.url,
+                        observed_value=f"HTTP {deployment.status_code} on *.run.app",
+                    )
+                ],
+                reason="A reachable Google Cloud Run runtime was verified.",
+                recommended_action=None,
+            )
+
+        if cloud_infrastructure and cloud_infrastructure.verified:
+            return Finding(
+                requirement_id=requirement.requirement_id,
+                requirement_text=requirement.requirement_text,
+                requirement_type=requirement.requirement_type,
+                status=EvidenceStatus.VERIFIED,
+                severity=Severity.PASS,
+                evidence=[_firestore_evidence(cloud_infrastructure)],
+                reason=(
+                    "A live Google Cloud Firestore operation was verified for this inspection."
+                ),
+                recommended_action=None,
+            )
+
+        repo_config = artifacts.get("cloud_run_config", [])
+        evidence = [_evidence_from_artifact(repo_config[0])] if repo_config else []
+        return Finding(
+            requirement_id=requirement.requirement_id,
+            requirement_text=requirement.requirement_text,
+            requirement_type=requirement.requirement_type,
+            status=EvidenceStatus.UNVERIFIED,
+            severity=Severity.CRITICAL,
+            evidence=evidence,
+            reason=(
+                "No live operation on a supported Google Cloud infrastructure service was verified."
+            ),
+            recommended_action=(
+                "Enable and verify a supported Google Cloud service such as Firestore, "
+                "or provide a reachable Cloud Run deployment."
+            ),
+        )
+
     if "google cloud" in text and (
-        "infrastructure" in text or "backend" in text or "cloud run" in text
+        "backend" in text or "cloud run" in text or "running" in text or "deployed" in text
     ):
         if deployment.reachable and deployment.google_cloud_runtime:
             return Finding(
@@ -203,10 +267,9 @@ def map_live_requirement(
                 recommended_action=None,
             )
 
-        repo_config = artifacts.get("cloud_run_config", [])
-        evidence = (
-            [_evidence_from_artifact(repo_config[0])]
-            if repo_config
+        partial_evidence = (
+            [_firestore_evidence(cloud_infrastructure)]
+            if cloud_infrastructure and cloud_infrastructure.verified
             else []
         )
         return Finding(
@@ -215,13 +278,13 @@ def map_live_requirement(
             requirement_type=requirement.requirement_type,
             status=EvidenceStatus.UNVERIFIED,
             severity=Severity.CRITICAL,
-            evidence=evidence,
+            evidence=partial_evidence,
             reason=(
-                "Google Cloud configuration may exist, but no reachable Google Cloud "
-                "runtime was verified."
+                "Google Cloud infrastructure use may be verified, but this rule specifically "
+                "requires a Google Cloud-hosted backend/runtime and no such runtime was verified."
             ),
             recommended_action=(
-                "Deploy the backend to Google Cloud Run and provide its *.run.app URL."
+                "Provide evidence of a reachable backend/runtime hosted on Google Cloud."
             ),
         )
 
