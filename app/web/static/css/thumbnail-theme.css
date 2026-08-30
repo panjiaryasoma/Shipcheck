@@ -1,0 +1,193 @@
+:root {
+  color-scheme: dark;
+  color: #f2eadb;
+  background: #071521;
+  --paper: #0b1d2a;
+  --paper-strong: #102735;
+  --ink: #f2eadb;
+  --muted: #9aa8aa;
+  --line: #263d4a;
+  --line-strong: #5b707b;
+  --signal: #e66b2c;
+  --pass: #c8d6b8;
+  --warning: #f0a15a;
+  --critical: #ff755a;
+  --manual: #a9b7c0;
+}
+
+html {
+  background: #071521;
+}
+
+body {
+  background:
+    linear-gradient(rgba(242, 234, 219, 0.045) 1px, transparent 1px),
+    #071521;
+}
+
+.site-header,
+.site-footer {
+  border-color: var(--line-strong);
+  background: #091925;
+}
+
+.site-header {
+  border-bottom-color: var(--signal);
+}
+
+.brand-mark {
+  border-color: var(--signal);
+  background: var(--signal);
+  color: #071521;
+}
+
+.header-meta a:hover,
+.report-meta a:hover,
+.text-action:hover {
+  color: var(--signal);
+}
+
+.eyebrow,
+.section-index {
+  color: var(--signal);
+}
+
+.lede {
+  color: #bdc6c2;
+}
+
+.workspace-grid,
+.panel,
+.findings-list,
+.finding {
+  border-color: var(--line-strong);
+}
+
+.panel {
+  background: rgba(11, 29, 42, 0.96);
+}
+
+.panel-heading,
+.finding-code {
+  background: var(--paper-strong);
+}
+
+.panel-code,
+.field-label em,
+.field-help,
+.summary-label,
+.report-meta dt,
+.inspection-id-block,
+.empty-report {
+  color: var(--muted);
+}
+
+.field input,
+.field textarea {
+  border-color: var(--line-strong);
+  background: #0a1a26;
+  color: var(--ink);
+}
+
+.field input:focus,
+.field textarea:focus {
+  border-color: var(--signal);
+  background: #0d2230;
+  box-shadow: inset 4px 0 0 var(--signal);
+}
+
+.field input::placeholder,
+.field textarea::placeholder {
+  color: #607582;
+}
+
+.primary-action {
+  border-color: var(--signal);
+  background: var(--signal);
+  color: #071521;
+}
+
+.primary-action:hover:not(:disabled) {
+  border-color: var(--ink);
+  background: var(--ink);
+  color: #071521;
+}
+
+.secondary-action {
+  border-color: var(--line-strong);
+  color: var(--ink);
+}
+
+.secondary-action:hover {
+  border-color: var(--signal);
+  background: #102735;
+}
+
+.inspection-state {
+  border-color: var(--line-strong);
+  background: #081924;
+  color: var(--muted);
+}
+
+.state-indicator {
+  border-color: var(--muted);
+}
+
+.empty-number {
+  color: #1b3443;
+}
+
+.disposition[data-disposition="READY"] {
+  color: var(--pass);
+}
+
+.disposition[data-disposition="HOLD"] {
+  color: var(--critical);
+}
+
+.disposition[data-disposition="NEEDS_REVIEW"] {
+  color: var(--warning);
+}
+
+.inspection-id-block code,
+.text-action {
+  color: var(--ink);
+}
+
+.summary-grid,
+.report-meta,
+.disposition-row,
+.finding-code,
+.finding-action,
+.evidence-list {
+  border-color: var(--line);
+}
+
+.finding-reason {
+  color: #b5c0bd;
+}
+
+.finding[data-status="VERIFIED"] .finding-code span {
+  color: var(--pass);
+}
+
+.finding[data-status="MANUAL_REVIEW"] .finding-code span {
+  color: var(--warning);
+}
+
+.finding[data-status="MISSING"] .finding-code span,
+.finding[data-status="CONTRADICTED"] .finding-code span,
+.finding[data-status="UNVERIFIED"] .finding-code span {
+  color: var(--critical);
+}
+
+.error-message {
+  border-color: var(--critical);
+  background: rgba(255, 117, 90, 0.08);
+  color: #ffc2b3;
+}
+
+::selection {
+  background: var(--signal);
+  color: #071521;
+}
