@@ -11,7 +11,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link
-      href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap"
+      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans+Condensed:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap"
       rel="stylesheet"
     >
     <link rel="stylesheet" href="/static/css/app.css">
@@ -24,7 +24,7 @@
         <span class="brand-mark" aria-hidden="true">SC</span>
         <span class="brand-copy">
           <strong>Shipcheck</strong>
-          <small>Autonomous submission preflight</small>
+          <small>Submission preflight inspector</small>
         </span>
       </a>
       <div class="header-meta">
@@ -36,195 +36,187 @@
     <main class="workspace">
       <section class="intro" aria-labelledby="page-title">
         <div class="intro-copy">
-          <p class="eyebrow">SOFTWARE CARGO / PRE-SUBMISSION CLEARANCE</p>
+          <p class="eyebrow">PRE-SUBMISSION INSPECTION</p>
           <h1 id="page-title">Not cleared until proven.</h1>
           <p class="lede">
-            Shipcheck turns competition rules into evidence checks, inspects a public
-            repository, and returns a release decision before the submission leaves the dock.
+            Turn competition rules into evidence checks, inspect a public repository,
+            and get a release decision before submission.
           </p>
         </div>
 
         <dl class="intro-register" aria-label="Inspection scope">
           <div>
-            <dt>Input</dt>
+            <dt>Reads</dt>
             <dd>Rules + repository</dd>
           </div>
           <div>
-            <dt>Decision</dt>
+            <dt>Returns</dt>
             <dd>READY / HOLD</dd>
           </div>
           <div>
-            <dt>Audit</dt>
-            <dd>Firestore record</dd>
+            <dt>Records</dt>
+            <dd>Firestore audit</dd>
           </div>
         </dl>
       </section>
 
-      <section class="clearance-plate" aria-label="Shipcheck clearance plate">
-        <aside class="cargo-rail" aria-hidden="true">
-          <span>SC</span>
-          <p>PRE-CLEARANCE</p>
-          <small>SOFTWARE CARGO</small>
-        </aside>
+      <div class="workspace-grid">
+        <section class="panel input-panel" aria-labelledby="input-title">
+          <div class="panel-heading">
+            <div>
+              <p class="section-index">MANIFEST</p>
+              <h2 id="input-title">Declare submission</h2>
+            </div>
+            <span class="panel-code">INPUT</span>
+          </div>
 
-        <div class="workspace-grid">
-          <section class="panel input-panel" aria-labelledby="input-title">
-            <div class="panel-heading">
+          <form id="inspection-form" novalidate>
+            <label class="field" for="rules-url">
+              <span class="field-label">Rules source <b>required</b></span>
+              <input
+                id="rules-url"
+                name="rules_url"
+                type="url"
+                inputmode="url"
+                autocomplete="url"
+                placeholder="https://hackathon.devpost.com/rules"
+                required
+              >
+              <span class="field-help">Public HTTPS page containing the submission rules.</span>
+            </label>
+
+            <label class="field" for="repository-url">
+              <span class="field-label">Repository <b>required</b></span>
+              <input
+                id="repository-url"
+                name="repository_url"
+                type="url"
+                inputmode="url"
+                autocomplete="url"
+                placeholder="https://github.com/owner/project"
+                required
+              >
+              <span class="field-help">Public HTTPS GitHub repository to inspect.</span>
+            </label>
+
+            <label class="field" for="deployment-url">
+              <span class="field-label">Live endpoint <em>optional</em></span>
+              <input
+                id="deployment-url"
+                name="deployment_url"
+                type="url"
+                inputmode="url"
+                autocomplete="url"
+                placeholder="https://your-app.example.com"
+              >
+              <span class="field-help">Leave blank when no live deployment exists.</span>
+            </label>
+
+            <label class="field" for="submission-claims">
+              <span class="field-label">Declared claims <em>optional</em></span>
+              <textarea
+                id="submission-claims"
+                name="submission_claims"
+                rows="4"
+                placeholder="One claim per line"
+              ></textarea>
+              <span class="field-help">
+                Claims are checked against repository and runtime evidence when possible.
+              </span>
+            </label>
+
+            <div class="form-actions">
+              <button class="primary-action" id="submit-button" type="submit">
+                <span>Run preflight</span>
+                <span aria-hidden="true">↗</span>
+              </button>
+              <button class="secondary-action" id="reset-button" type="reset">Clear</button>
+            </div>
+          </form>
+
+          <div class="inspection-state" id="inspection-state" role="status" aria-live="polite">
+            <span class="state-indicator" aria-hidden="true"></span>
+            <span id="state-copy">Awaiting manifest.</span>
+          </div>
+        </section>
+
+        <section class="panel report-panel" id="report-panel" aria-labelledby="report-title">
+          <div class="panel-heading">
+            <div>
+              <p class="section-index">CLEARANCE</p>
+              <h2 id="report-title">Evidence register</h2>
+            </div>
+            <span class="panel-code">OUTPUT</span>
+          </div>
+
+          <div class="empty-report" id="empty-report">
+            <span class="empty-rule" aria-hidden="true"></span>
+            <p class="empty-title">No report yet.</p>
+            <p class="muted">Run a preflight inspection to populate this register.</p>
+          </div>
+
+          <div class="report-content" id="report-content" hidden>
+            <div class="disposition-row">
               <div>
-                <p class="section-index">MANIFEST</p>
-                <h2 id="input-title">Declare the submission</h2>
+                <p class="eyebrow">FINAL DISPOSITION</p>
+                <p class="disposition" id="disposition">—</p>
               </div>
-              <span class="panel-code">FORM A</span>
+              <div class="inspection-id-block">
+                <span>INSPECTION ID</span>
+                <code id="inspection-id">—</code>
+              </div>
             </div>
 
-            <form id="inspection-form" novalidate>
-              <label class="field" for="rules-url">
-                <span class="field-label">Rules source <b>required</b></span>
-                <input
-                  id="rules-url"
-                  name="rules_url"
-                  type="url"
-                  inputmode="url"
-                  autocomplete="url"
-                  placeholder="https://hackathon.devpost.com/rules"
-                  required
-                >
-                <span class="field-help">Public HTTPS page containing the submission rules.</span>
-              </label>
-
-              <label class="field" for="repository-url">
-                <span class="field-label">Repository <b>required</b></span>
-                <input
-                  id="repository-url"
-                  name="repository_url"
-                  type="url"
-                  inputmode="url"
-                  autocomplete="url"
-                  placeholder="https://github.com/owner/project"
-                  required
-                >
-                <span class="field-help">Public HTTPS GitHub repository to inspect.</span>
-              </label>
-
-              <label class="field" for="deployment-url">
-                <span class="field-label">Live endpoint <em>optional</em></span>
-                <input
-                  id="deployment-url"
-                  name="deployment_url"
-                  type="url"
-                  inputmode="url"
-                  autocomplete="url"
-                  placeholder="https://your-app.example.com"
-                >
-                <span class="field-help">Leave blank when no live deployment exists.</span>
-              </label>
-
-              <label class="field" for="submission-claims">
-                <span class="field-label">Declared claims <em>optional</em></span>
-                <textarea
-                  id="submission-claims"
-                  name="submission_claims"
-                  rows="5"
-                  placeholder="One claim per line, e.g. The project uses Google Cloud Firestore."
-                ></textarea>
-                <span class="field-help">
-                  Claims are checked against repository and runtime evidence when possible.
-                </span>
-              </label>
-
-              <div class="form-actions">
-                <button class="primary-action" id="submit-button" type="submit">
-                  <span>Run preflight</span>
-                  <span aria-hidden="true">↗</span>
-                </button>
-                <button class="secondary-action" id="reset-button" type="reset">Clear manifest</button>
+            <div class="summary-grid" aria-label="Inspection summary">
+              <div class="summary-cell">
+                <span class="summary-label">Verified</span>
+                <span class="summary-value" id="summary-passed">0</span>
               </div>
-            </form>
-
-            <div class="inspection-state" id="inspection-state" role="status" aria-live="polite">
-              <span class="state-indicator" aria-hidden="true"></span>
-              <span id="state-copy">Awaiting manifest.</span>
+              <div class="summary-cell">
+                <span class="summary-label">Manual review</span>
+                <span class="summary-value" id="summary-manual">0</span>
+              </div>
+              <div class="summary-cell">
+                <span class="summary-label">Warnings</span>
+                <span class="summary-value" id="summary-warning">0</span>
+              </div>
+              <div class="summary-cell">
+                <span class="summary-label">Critical</span>
+                <span class="summary-value" id="summary-critical">0</span>
+              </div>
             </div>
-          </section>
 
-          <section class="panel report-panel" id="report-panel" aria-labelledby="report-title">
-            <div class="panel-heading">
+            <dl class="report-meta">
               <div>
-                <p class="section-index">CLEARANCE</p>
-                <h2 id="report-title">Evidence register</h2>
+                <dt>Model used</dt>
+                <dd id="model-used">—</dd>
               </div>
-              <span class="panel-code">REPORT</span>
+              <div>
+                <dt>Fallback</dt>
+                <dd id="fallback-used">—</dd>
+              </div>
+              <div>
+                <dt>Repository</dt>
+                <dd><a id="report-repository" href="#" target="_blank" rel="noreferrer">—</a></dd>
+              </div>
+              <div>
+                <dt>Rules source</dt>
+                <dd><a id="report-rules" href="#" target="_blank" rel="noreferrer">—</a></dd>
+              </div>
+            </dl>
+
+            <div class="findings-heading">
+              <div>
+                <p class="section-index">REQUIREMENT LEDGER</p>
+                <h3>Inspected requirements</h3>
+              </div>
+              <button class="text-action" id="download-report" type="button">Export JSON</button>
             </div>
 
-            <div class="empty-report" id="empty-report">
-              <div class="empty-seal" aria-hidden="true">SC</div>
-              <p class="empty-title">No clearance record.</p>
-              <p class="muted">Complete the manifest and run preflight to issue a report.</p>
-            </div>
-
-            <div class="report-content" id="report-content" hidden>
-              <div class="disposition-row">
-                <div>
-                  <p class="eyebrow">FINAL DISPOSITION</p>
-                  <p class="disposition" id="disposition">—</p>
-                </div>
-                <div class="inspection-id-block">
-                  <span>INSPECTION ID</span>
-                  <code id="inspection-id">—</code>
-                </div>
-              </div>
-
-              <div class="summary-grid" aria-label="Inspection summary">
-                <div class="summary-cell">
-                  <span class="summary-label">Verified</span>
-                  <span class="summary-value" id="summary-passed">0</span>
-                </div>
-                <div class="summary-cell">
-                  <span class="summary-label">Manual review</span>
-                  <span class="summary-value" id="summary-manual">0</span>
-                </div>
-                <div class="summary-cell">
-                  <span class="summary-label">Warnings</span>
-                  <span class="summary-value" id="summary-warning">0</span>
-                </div>
-                <div class="summary-cell">
-                  <span class="summary-label">Critical</span>
-                  <span class="summary-value" id="summary-critical">0</span>
-                </div>
-              </div>
-
-              <dl class="report-meta">
-                <div>
-                  <dt>Model used</dt>
-                  <dd id="model-used">—</dd>
-                </div>
-                <div>
-                  <dt>Fallback</dt>
-                  <dd id="fallback-used">—</dd>
-                </div>
-                <div>
-                  <dt>Repository</dt>
-                  <dd><a id="report-repository" href="#" target="_blank" rel="noreferrer">—</a></dd>
-                </div>
-                <div>
-                  <dt>Rules source</dt>
-                  <dd><a id="report-rules" href="#" target="_blank" rel="noreferrer">—</a></dd>
-                </div>
-              </dl>
-
-              <div class="findings-heading">
-                <div>
-                  <p class="section-index">REQUIREMENT LEDGER</p>
-                  <h3>Inspected requirements</h3>
-                </div>
-                <button class="text-action" id="download-report" type="button">Export JSON</button>
-              </div>
-
-              <div class="findings-list" id="findings-list"></div>
-            </div>
-          </section>
-        </div>
-      </section>
+            <div class="findings-list" id="findings-list"></div>
+          </div>
+        </section>
+      </div>
     </main>
 
     <footer class="site-footer">
