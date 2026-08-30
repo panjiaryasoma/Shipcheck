@@ -6,13 +6,19 @@ import asyncio
 from pathlib import Path
 from uuid import uuid4
 
+from app.models.cloud_infrastructure import GoogleCloudObservation
 from app.models.live_inspection import InspectionSummary, LiveInspectionReport
+from app.models.repository_inspection import RepositoryInspectionOutput
+from app.models.rules_extraction import RulesExtractionOutput
 from app.models.schemas import EvidenceStatus, InspectionReport, InspectionRequest, Severity
 from app.services.live_repository import inspect_live_repository
 from app.services.live_rules import extract_requirements_with_adk
-from app.storage.firestore import persist_live_inspection
+from app.storage.firestore import (
+    persist_live_inspection,
+    persist_live_inspection_with_evidence,
+)
 from app.tools.contradiction import detect_claim_contradictions
-from app.tools.deployment import verify_fixture_deployment, verify_live_deployment
+from app.tools.deployment import DeploymentObservation, verify_fixture_deployment, verify_live_deployment
 from app.tools.evidence import map_fixture_evidence
 from app.tools.live_evidence import map_live_requirement
 from app.tools.repository import inspect_fixture_repository
@@ -51,6 +57,33 @@ def _summarize(findings) -> InspectionSummary:
     )
 
 
+def _live_findings(
+    *,
+    rules: RulesExtractionOutput,
+    repository: RepositoryInspectionOutput,
+    deployment: DeploymentObservation,
+    submission_claims: list[str],
+    cloud_infrastructure: GoogleCloudObservation | None = None,
+):
+    findings = [
+        map_live_requirement(
+            requirement,
+            repository,
+            deployment,
+            cloud_infrastructure=cloud_infrastructure,
+        )
+        for requirement in rules.requirements
+    ]
+    findings.extend(
+        detect_claim_contradictions(
+            submission_claims,
+            repository,
+            deployment,
+        )
+    )
+    return findings
+
+
 async def inspect_live_submission(
     request: InspectionRequest,
 ) -> LiveInspectionReport:
@@ -62,16 +95,11 @@ async def inspect_live_submission(
         str(request.deployment_url) if request.deployment_url else None
     )
 
-    findings = [
-        map_live_requirement(requirement, repository, deployment)
-        for requirement in rules.requirements
-    ]
-    findings.extend(
-        detect_claim_contradictions(
-            request.submission_claims,
-            repository,
-            deployment,
-        )
+    findings = _live_findings(
+        rules=rules,
+        repository=repository,
+        deployment=deployment,
+        submission_claims=request.submission_claims,
     )
 
     report = LiveInspectionReport(
@@ -91,9 +119,24 @@ async def inspect_live_submission(
         ],
     )
 
-    if await persist_live_inspection(report):
+    cloud_observation = await persist_live_inspection_with_evidence(report)
+    if cloud_observation:
+        findings = _live_findings(
+            rules=rules,
+            repository=repository,
+            deployment=deployment,
+            submission_claims=request.submission_claims,
+            cloud_infrastructure=cloud_observation,
+        )
+        report.findings = findings
+        report.final_disposition = derive_final_disposition(findings)
+        report.summary = _summarize(findings)
         report.notes.append(
             "Persisted this live inspection as an audit record in Google Cloud Firestore."
         )
+
+        # Rewrite the same document so the stored audit record contains the final
+        # verdict after the successful Firestore operation becomes inspectable evidence.
+        await persist_live_inspection(report)
 
     return report
