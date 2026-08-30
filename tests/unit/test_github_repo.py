@@ -31,18 +31,20 @@ def test_derive_core_repository_artifacts() -> None:
     paths = [
         "README.md",
         "pyproject.toml",
+        ".env.example",
         "Dockerfile",
         "docs/architecture.md",
         "app/agent.py",
     ]
     contents = {
-        "README.md": "Setup: uv sync\\nRun: uv run uvicorn app.main:app",
+        "README.md": "Setup: uv sync\nRun: uv run uvicorn app.main:app",
         "pyproject.toml": 'dependencies = ["google-adk"]',
+        ".env.example": "SHIPCHECK_MODEL=gemini-3.7-flash\n",
         "Dockerfile": "FROM python:3.12-slim",
         "docs/architecture.md": "# Architecture",
         "app/agent.py": (
-            "from google.adk.agents import Agent\\n"
-            "MODEL = 'gemini-3.7-flash'\\n"
+            "from google.adk.agents import Agent\n"
+            "MODEL = 'gemini-3.7-flash'\n"
             "# deploy with gcloud run deploy"
         ),
     }
@@ -50,9 +52,11 @@ def test_derive_core_repository_artifacts() -> None:
     artifacts = derive_artifacts(paths=paths, file_contents=contents)
     evidence_types = {artifact.evidence_type for artifact in artifacts}
 
+    assert "repository_visibility" in evidence_types
     assert "architecture_artifact" in evidence_types
     assert "readme_setup" in evidence_types
     assert "google_adk" in evidence_types
-    assert "gemini_model" in evidence_types
-    assert "cloud_run_evidence" in evidence_types
+    assert "gemini_primary_model_config" in evidence_types
+    assert "cloud_run_config" in evidence_types
     assert "container_build" in evidence_types
+    assert "cloud_run_evidence" not in evidence_types
