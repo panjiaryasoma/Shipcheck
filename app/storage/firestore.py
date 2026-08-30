@@ -8,7 +8,6 @@ from urllib.parse import quote
 
 import google.auth
 import httpx
-from google.auth.credentials import Credentials
 from google.auth.transport.requests import Request
 
 from app.core.config import settings
@@ -23,7 +22,6 @@ class FirestorePersistenceError(RuntimeError):
 
 def _access_token_and_project() -> tuple[str, str]:
     credentials, discovered_project = google.auth.default(scopes=[_FIRESTORE_SCOPE])
-    credentials = credentials  # type: Credentials
 
     if not credentials.valid:
         credentials.refresh(Request())
