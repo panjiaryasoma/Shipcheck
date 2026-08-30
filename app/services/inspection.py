@@ -10,6 +10,7 @@ from app.models.live_inspection import InspectionSummary, LiveInspectionReport
 from app.models.schemas import EvidenceStatus, InspectionReport, InspectionRequest, Severity
 from app.services.live_repository import inspect_live_repository
 from app.services.live_rules import extract_requirements_with_adk
+from app.storage.firestore import persist_live_inspection
 from app.tools.contradiction import detect_claim_contradictions
 from app.tools.deployment import verify_fixture_deployment, verify_live_deployment
 from app.tools.evidence import map_fixture_evidence
@@ -73,7 +74,7 @@ async def inspect_live_submission(
         )
     )
 
-    return LiveInspectionReport(
+    report = LiveInspectionReport(
         inspection_id=f"live-{uuid4().hex[:10]}",
         rules_source=rules.source_url,
         repository_url=repository.repository_url,
@@ -89,3 +90,10 @@ async def inspect_live_submission(
             "READY means ready within the evidence Shipcheck could inspect.",
         ],
     )
+
+    if await persist_live_inspection(report):
+        report.notes.append(
+            "Persisted this live inspection as an audit record in Google Cloud Firestore."
+        )
+
+    return report
