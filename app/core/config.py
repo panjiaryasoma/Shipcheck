@@ -13,6 +13,7 @@ class Settings(BaseSettings):
     shipcheck_fallback_models: str = "gemini-3.6-flash,gemini-3.5-flash"
     shipcheck_env: str = "development"
     shipcheck_request_timeout_seconds: int = 20
+    shipcheck_rules_cache_ttl_seconds: int = 3600
 
 
 settings = Settings()
