@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import asyncio
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from urllib.parse import quote
 
 import google.auth
@@ -11,6 +11,7 @@ import httpx
 from google.auth.transport.requests import Request
 
 from app.core.config import settings
+from app.models.cloud_infrastructure import GoogleCloudObservation
 from app.models.live_inspection import LiveInspectionReport
 
 _FIRESTORE_SCOPE = "https://www.googleapis.com/auth/datastore"
@@ -40,7 +41,7 @@ def _access_token_and_project() -> tuple[str, str]:
 
 
 def _firestore_fields(report: LiveInspectionReport) -> dict[str, dict]:
-    created_at = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+    created_at = datetime.now(UTC).isoformat().replace("+00:00", "Z")
 
     return {
         "inspection_id": {"stringValue": report.inspection_id},
@@ -56,15 +57,20 @@ def _firestore_fields(report: LiveInspectionReport) -> dict[str, dict]:
     }
 
 
-async def persist_live_inspection(report: LiveInspectionReport) -> bool:
-    """Persist one live report when Firestore is explicitly enabled.
+def _resource_path(project: str, report: LiveInspectionReport) -> str:
+    return (
+        f"projects/{project}/databases/{settings.shipcheck_firestore_database}/documents/"
+        f"{settings.shipcheck_firestore_collection}/{report.inspection_id}"
+    )
 
-    Returns False without touching Google Cloud when persistence is disabled.
-    When enabled, failures are raised rather than silently claiming persistence.
-    """
+
+async def persist_live_inspection_with_evidence(
+    report: LiveInspectionReport,
+) -> GoogleCloudObservation | None:
+    """Persist a live report and return evidence for the successful Firestore write."""
 
     if not settings.shipcheck_firestore_enabled:
-        return False
+        return None
 
     token, project = await asyncio.to_thread(_access_token_and_project)
     database = quote(settings.shipcheck_firestore_database, safe="()")
@@ -95,4 +101,20 @@ async def persist_live_inspection(report: LiveInspectionReport) -> bool:
             f"Firestore returned HTTP {response.status_code}: {detail}"
         )
 
-    return True
+    return GoogleCloudObservation(
+        service="firestore",
+        verified=True,
+        project_id=project,
+        resource=_resource_path(project, report),
+        detail=f"HTTP {response.status_code} document write to Cloud Firestore",
+    )
+
+
+async def persist_live_inspection(report: LiveInspectionReport) -> bool:
+    """Persist one live report when Firestore is explicitly enabled.
+
+    Returns False without touching Google Cloud when persistence is disabled.
+    When enabled, failures are raised rather than silently claiming persistence.
+    """
+
+    return await persist_live_inspection_with_evidence(report) is not None
