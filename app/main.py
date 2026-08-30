@@ -1,6 +1,7 @@
 from pathlib import Path
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
@@ -13,7 +14,7 @@ from app.tools.live_rules import RulesFetchError
 
 app = FastAPI(
     title="Shipcheck",
-    version="0.4.0",
+    version="0.5.0",
     description="Autonomous preflight inspection for software submissions.",
 )
 
@@ -23,9 +24,14 @@ templates = Jinja2Templates(directory="app/web/templates")
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
 
+@app.get("/", response_class=HTMLResponse)
+async def index(request: Request):
+    return templates.TemplateResponse(request=request, name="index.html")
+
+
 @app.get("/health")
 async def health() -> dict[str, str]:
-    return {"status": "ok", "service": "shipcheck", "version": "0.4.0"}
+    return {"status": "ok", "service": "shipcheck", "version": "0.5.0"}
 
 
 @app.get("/api/fixtures/{fixture_name}/inspect")
