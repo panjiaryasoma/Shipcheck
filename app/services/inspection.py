@@ -18,7 +18,11 @@ from app.storage.firestore import (
     persist_live_inspection_with_evidence,
 )
 from app.tools.contradiction import detect_claim_contradictions
-from app.tools.deployment import DeploymentObservation, verify_fixture_deployment, verify_live_deployment
+from app.tools.deployment import (
+    DeploymentObservation,
+    verify_fixture_deployment,
+    verify_live_deployment,
+)
 from app.tools.evidence import map_fixture_evidence
 from app.tools.live_evidence import map_live_requirement
 from app.tools.repository import inspect_fixture_repository
