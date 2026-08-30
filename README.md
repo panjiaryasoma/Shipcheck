@@ -27,6 +27,7 @@ One agent. One inspection. One evidence-backed report.
 - Google Gen AI SDK
 - Gemini 3.5+ model selected through environment configuration
 - FastAPI
+- server-rendered HTML + vanilla JavaScript inspection workspace
 - Google Cloud Firestore for optional inspection audit persistence
 - Cloud Run-compatible container configuration
 - uv
@@ -40,11 +41,36 @@ Copy-Item .env.example .env
 uv run uvicorn app.main:app --reload
 ```
 
+Open the inspection workspace:
+
+```text
+http://127.0.0.1:8000/
+```
+
+API documentation remains available at:
+
+```text
+http://127.0.0.1:8000/docs
+```
+
 Health check:
 
 ```text
 GET /health
 ```
+
+## Using the inspection workspace
+
+The web workspace accepts:
+
+1. a public HTTPS rules page;
+2. a public HTTPS GitHub repository;
+3. an optional deployment URL;
+4. optional submission claims, one per line.
+
+`Run preflight` calls `POST /api/inspect` and renders the disposition, summary counts,
+model provenance, requirement-level findings, evidence, and recommended actions. The
+report can also be downloaded as JSON from the browser.
 
 ## Firestore audit persistence
 
