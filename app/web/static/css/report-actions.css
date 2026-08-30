@@ -1,0 +1,53 @@
+.report-decision-meta {
+  display: grid;
+  gap: 12px;
+}
+
+.report-download-action {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  min-height: 44px;
+  padding: 0 12px;
+  border: 1px solid var(--navy-2);
+  border-radius: 0;
+  background: var(--navy-2);
+  color: var(--cream);
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 0.66rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: background-color 140ms ease-out, border-color 140ms ease-out, color 140ms ease-out;
+}
+
+.report-download-action span:last-child {
+  color: #f2a376;
+}
+
+.report-download-action:hover {
+  border-color: var(--orange);
+  background: var(--orange);
+  color: var(--navy);
+}
+
+.report-download-action:hover span:last-child {
+  color: var(--navy);
+}
+
+.report-download-action:focus-visible {
+  outline: 2px solid var(--orange);
+  outline-offset: 2px;
+}
+
+@media (min-width: 680px) {
+  .report-decision-meta {
+    min-width: 220px;
+    justify-items: stretch;
+  }
+
+  .report-download-action {
+    width: 100%;
+  }
+}
