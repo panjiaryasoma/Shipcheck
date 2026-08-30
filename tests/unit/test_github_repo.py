@@ -2,6 +2,7 @@ import pytest
 
 from app.tools.github_repo import (
     GitHubInspectionError,
+    _raw_file_url,
     derive_artifacts,
     parse_github_repository_url,
 )
@@ -25,6 +26,20 @@ def test_parse_public_github_repository_url() -> None:
 def test_invalid_repository_urls_are_rejected(url: str) -> None:
     with pytest.raises(GitHubInspectionError):
         parse_github_repository_url(url)
+
+
+def test_raw_file_url_encodes_branch_without_leaking_path_structure() -> None:
+    url = _raw_file_url(
+        owner="example",
+        repo="demo",
+        branch="feature/rules",
+        path="docs/My Architecture.md",
+    )
+
+    assert url == (
+        "https://raw.githubusercontent.com/example/demo/"
+        "feature%2Frules/docs/My%20Architecture.md"
+    )
 
 
 def test_derive_core_repository_artifacts() -> None:
