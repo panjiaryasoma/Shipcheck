@@ -14,6 +14,8 @@ Rules URL + Public GitHub Repo + Optional Deployment
                Shipcheck Agent
                     ↓
    requirements → evidence → findings → disposition
+                    ↓
+        optional Firestore audit record
 ```
 
 One agent. One inspection. One evidence-backed report.
@@ -25,7 +27,8 @@ One agent. One inspection. One evidence-backed report.
 - Google Gen AI SDK
 - Gemini 3.5+ model selected through environment configuration
 - FastAPI
-- Google Cloud Run
+- Google Cloud Firestore for optional inspection audit persistence
+- Cloud Run-compatible container configuration
 - uv
 - pytest
 
@@ -42,6 +45,30 @@ Health check:
 ```text
 GET /health
 ```
+
+## Firestore audit persistence
+
+Shipcheck can persist live inspection reports to the project's default Google Cloud
+Firestore database without making Firestore a dependency of fixture tests.
+
+Authenticate local Application Default Credentials once:
+
+```powershell
+gcloud auth application-default login
+gcloud auth application-default set-quota-project YOUR_GOOGLE_CLOUD_PROJECT
+```
+
+Then enable persistence before running a live inspection:
+
+```powershell
+$env:SHIPCHECK_FIRESTORE_ENABLED="true"
+$env:SHIPCHECK_FIRESTORE_DATABASE="(default)"
+$env:SHIPCHECK_FIRESTORE_COLLECTION="shipcheck_inspections"
+```
+
+A successful live inspection creates or updates a document whose ID matches the
+`inspection_id`. Firestore persistence is disabled by default and, when explicitly
+enabled, persistence errors fail loudly rather than being reported as success.
 
 ## Tests
 
