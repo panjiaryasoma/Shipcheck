@@ -3,15 +3,200 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Shipcheck</title>
+    <meta
+      name="description"
+      content="Shipcheck inspects software submissions against explicit competition rules."
+    >
+    <title>Shipcheck · Submission Preflight</title>
     <link rel="stylesheet" href="/static/css/app.css">
   </head>
   <body>
-    <main>
-      <p class="eyebrow">SHIPCHECK / SUBMISSION INSPECTION</p>
-      <h1>Not cleared until proven.</h1>
-      <p>UI shell only. The first vertical slice comes before visual polish.</p>
+    <header class="site-header">
+      <a class="brand" href="/" aria-label="Shipcheck home">
+        <span class="brand-mark" aria-hidden="true">SC</span>
+        <span>Shipcheck</span>
+      </a>
+      <div class="header-meta">
+        <span>PRE-FLIGHT INSPECTION</span>
+        <a href="/docs">API</a>
+      </div>
+    </header>
+
+    <main class="workspace">
+      <section class="intro" aria-labelledby="page-title">
+        <p class="eyebrow">SUBMISSION CONTROL / 01</p>
+        <h1 id="page-title">Not cleared until proven.</h1>
+        <p class="lede">
+          Feed Shipcheck the rules and a public GitHub repository. It extracts explicit
+          requirements, gathers bounded evidence, flags contradictions, and returns an
+          evidence-backed release decision.
+        </p>
+      </section>
+
+      <div class="workspace-grid">
+        <section class="panel input-panel" aria-labelledby="input-title">
+          <div class="panel-heading">
+            <div>
+              <p class="section-index">01</p>
+              <h2 id="input-title">Inspection manifest</h2>
+            </div>
+            <span class="panel-code">INPUT</span>
+          </div>
+
+          <form id="inspection-form" novalidate>
+            <label class="field" for="rules-url">
+              <span class="field-label">Rules URL <b>required</b></span>
+              <input
+                id="rules-url"
+                name="rules_url"
+                type="url"
+                inputmode="url"
+                autocomplete="url"
+                placeholder="https://hackathon.devpost.com/rules"
+                required
+              >
+              <span class="field-help">Public HTTPS page containing the submission rules.</span>
+            </label>
+
+            <label class="field" for="repository-url">
+              <span class="field-label">Repository URL <b>required</b></span>
+              <input
+                id="repository-url"
+                name="repository_url"
+                type="url"
+                inputmode="url"
+                autocomplete="url"
+                placeholder="https://github.com/owner/project"
+                required
+              >
+              <span class="field-help">Public HTTPS GitHub repository to inspect.</span>
+            </label>
+
+            <label class="field" for="deployment-url">
+              <span class="field-label">Deployment URL <em>optional</em></span>
+              <input
+                id="deployment-url"
+                name="deployment_url"
+                type="url"
+                inputmode="url"
+                autocomplete="url"
+                placeholder="https://your-app.example.com"
+              >
+              <span class="field-help">Leave blank when no live deployment exists.</span>
+            </label>
+
+            <label class="field" for="submission-claims">
+              <span class="field-label">Submission claims <em>optional</em></span>
+              <textarea
+                id="submission-claims"
+                name="submission_claims"
+                rows="5"
+                placeholder="One claim per line, e.g. The project uses Google Cloud Firestore."
+              ></textarea>
+              <span class="field-help">
+                Claims are checked against repository and runtime evidence when possible.
+              </span>
+            </label>
+
+            <div class="form-actions">
+              <button class="primary-action" id="submit-button" type="submit">
+                <span>Run preflight</span>
+                <span aria-hidden="true">→</span>
+              </button>
+              <button class="secondary-action" id="reset-button" type="reset">Clear</button>
+            </div>
+          </form>
+
+          <div class="inspection-state" id="inspection-state" role="status" aria-live="polite">
+            <span class="state-indicator" aria-hidden="true"></span>
+            <span id="state-copy">Awaiting manifest.</span>
+          </div>
+        </section>
+
+        <section class="panel report-panel" id="report-panel" aria-labelledby="report-title">
+          <div class="panel-heading">
+            <div>
+              <p class="section-index">02</p>
+              <h2 id="report-title">Clearance report</h2>
+            </div>
+            <span class="panel-code">OUTPUT</span>
+          </div>
+
+          <div class="empty-report" id="empty-report">
+            <p class="empty-number">00</p>
+            <p>No inspection has been run in this session.</p>
+            <p class="muted">A report will appear here after the evidence pass completes.</p>
+          </div>
+
+          <div class="report-content" id="report-content" hidden>
+            <div class="disposition-row">
+              <div>
+                <p class="eyebrow">FINAL DISPOSITION</p>
+                <p class="disposition" id="disposition">—</p>
+              </div>
+              <div class="inspection-id-block">
+                <span>INSPECTION ID</span>
+                <code id="inspection-id">—</code>
+              </div>
+            </div>
+
+            <div class="summary-grid" aria-label="Inspection summary">
+              <div class="summary-cell">
+                <span class="summary-value" id="summary-passed">0</span>
+                <span class="summary-label">Verified</span>
+              </div>
+              <div class="summary-cell">
+                <span class="summary-value" id="summary-manual">0</span>
+                <span class="summary-label">Manual review</span>
+              </div>
+              <div class="summary-cell">
+                <span class="summary-value" id="summary-warning">0</span>
+                <span class="summary-label">Warnings</span>
+              </div>
+              <div class="summary-cell">
+                <span class="summary-value" id="summary-critical">0</span>
+                <span class="summary-label">Critical</span>
+              </div>
+            </div>
+
+            <dl class="report-meta">
+              <div>
+                <dt>Model used</dt>
+                <dd id="model-used">—</dd>
+              </div>
+              <div>
+                <dt>Fallback</dt>
+                <dd id="fallback-used">—</dd>
+              </div>
+              <div>
+                <dt>Repository</dt>
+                <dd><a id="report-repository" href="#" target="_blank" rel="noreferrer">—</a></dd>
+              </div>
+              <div>
+                <dt>Rules source</dt>
+                <dd><a id="report-rules" href="#" target="_blank" rel="noreferrer">—</a></dd>
+              </div>
+            </dl>
+
+            <div class="findings-heading">
+              <div>
+                <p class="section-index">EVIDENCE REGISTER</p>
+                <h3>Requirement findings</h3>
+              </div>
+              <button class="text-action" id="download-report" type="button">Download JSON</button>
+            </div>
+
+            <div class="findings-list" id="findings-list"></div>
+          </div>
+        </section>
+      </div>
     </main>
-    <script src="/static/js/app.js"></script>
+
+    <footer class="site-footer">
+      <span>SHIPCHECK / EVIDENCE BEFORE CONFIDENCE</span>
+      <span>READY means ready within inspected scope.</span>
+    </footer>
+
+    <script src="/static/js/app.js" defer></script>
   </body>
 </html>
