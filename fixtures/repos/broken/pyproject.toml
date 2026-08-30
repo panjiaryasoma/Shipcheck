@@ -1,0 +1,6 @@
+[project]
+name = "broken-fixture"
+version = "0.0.0"
+dependencies = [
+  "google-adk>=1.17",
+]

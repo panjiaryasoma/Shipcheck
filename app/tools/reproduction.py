@@ -1,0 +1,6 @@
+"""Reproduction Checker: perform bounded and safe reproducibility checks.
+
+Contract source: docs/SIMPLE_PRD.md
+
+This module is intentionally a scaffold. Implement only the bounded P0 contract.
+"""
