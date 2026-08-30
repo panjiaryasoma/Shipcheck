@@ -193,7 +193,7 @@ async function runInspection(event) {
     }
 
     renderReport(body);
-    reportPanel.scrollIntoView({behavior: "smooth", block: "start"});
+    reportPanel.scrollIntoView({block: "start"});
   } catch (error) {
     renderError(error instanceof Error ? error.message : "Inspection failed unexpectedly.");
   } finally {
