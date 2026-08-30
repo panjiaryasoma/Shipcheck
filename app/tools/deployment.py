@@ -50,7 +50,7 @@ async def verify_live_deployment(url: str | None) -> DeploymentObservation:
 
     async with httpx.AsyncClient(
         timeout=timeout,
-        follow_redirects=True,
+        follow_redirects=False,
         headers={"User-Agent": "Shipcheck/0.4"},
     ) as client:
         response = await client.get(url)
@@ -59,7 +59,7 @@ async def verify_live_deployment(url: str | None) -> DeploymentObservation:
     hostname = (urlparse(final_url).hostname or "").lower()
 
     return DeploymentObservation(
-        reachable=response.status_code < 500,
+        reachable=200 <= response.status_code < 400,
         url=final_url,
         status_code=response.status_code,
         google_cloud_runtime=hostname.endswith(".run.app"),
