@@ -65,9 +65,7 @@ def _is_retryable_model_error(exc: BaseException) -> bool:
 
 
 def _cache_path(rules_url: str) -> Path:
-    cache_key = hashlib.sha256(
-        f"{_CACHE_SCHEMA_VERSION}:{rules_url}".encode("utf-8")
-    ).hexdigest()
+    cache_key = hashlib.sha256(f"{_CACHE_SCHEMA_VERSION}:{rules_url}".encode()).hexdigest()
     return _CACHE_ROOT / f"{cache_key}.json"
 
 
