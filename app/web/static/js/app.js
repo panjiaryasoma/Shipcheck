@@ -39,7 +39,7 @@ function evidenceLabel(evidence) {
   return `${source}${location}${observed}`;
 }
 
-function renderFinding(finding) {
+function renderFinding(finding, index) {
   const article = document.createElement("article");
   article.className = "finding";
   article.dataset.status = finding.status;
@@ -47,11 +47,15 @@ function renderFinding(finding) {
   const code = document.createElement("div");
   code.className = "finding-code";
 
+  const trace = document.createElement("span");
+  trace.className = "finding-trace";
+  trace.textContent = `EVD-${String(index + 1).padStart(2, "0")}`;
+
   const requirementId = document.createElement("strong");
   requirementId.textContent = finding.requirement_id;
   const status = document.createElement("span");
   status.textContent = finding.status;
-  code.append(requirementId, status);
+  code.append(trace, requirementId, status);
 
   const body = document.createElement("div");
   body.className = "finding-body";
@@ -119,8 +123,8 @@ function renderReport(report) {
   link("report-rules", report.rules_source);
 
   findingsList.replaceChildren();
-  (report.findings || []).forEach((finding) => {
-    findingsList.append(renderFinding(finding));
+  (report.findings || []).forEach((finding, index) => {
+    findingsList.append(renderFinding(finding, index));
   });
 
   setState(
