@@ -14,7 +14,9 @@ def test_root_serves_inspection_workspace() -> None:
     assert 'id="inspection-form"' in response.text
     assert 'id="report-panel"' in response.text
     assert 'id="download-report"' in response.text
-    assert "Download report (.md)" in response.text
+    assert "Download report" in response.text
+    assert ".MD ↓" in response.text
+    assert 'href="/static/css/report-actions.css"' in response.text
     assert 'src="/static/js/app.js"' in response.text
 
 
