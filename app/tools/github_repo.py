@@ -2,10 +2,9 @@
 
 from __future__ import annotations
 
-import base64
 import re
 from dataclasses import dataclass
-from urllib.parse import urlparse
+from urllib.parse import quote, urlparse
 
 import httpx
 
@@ -13,6 +12,7 @@ from app.core.config import settings
 from app.models.repository_inspection import RepositoryArtifact
 
 GITHUB_API = "https://api.github.com"
+RAW_GITHUB = "https://raw.githubusercontent.com"
 MAX_TREE_ENTRIES = 2500
 MAX_SELECTED_FILE_BYTES = 350_000
 
@@ -118,7 +118,7 @@ def _headers() -> dict[str, str]:
     headers = {
         "Accept": "application/vnd.github+json",
         "X-GitHub-Api-Version": "2022-11-28",
-        "User-Agent": "Shipcheck/0.3.1",
+        "User-Agent": "Shipcheck/0.4.1",
     }
 
     token = getattr(settings, "github_token", None)
@@ -145,6 +145,12 @@ async def _get_json(client: httpx.AsyncClient, path: str) -> dict | list:
     return response.json()
 
 
+def _raw_file_url(*, owner: str, repo: str, branch: str, path: str) -> str:
+    encoded_branch = quote(branch, safe="")
+    encoded_path = quote(path, safe="/")
+    return f"{RAW_GITHUB}/{owner}/{repo}/{encoded_branch}/{encoded_path}"
+
+
 async def _fetch_selected_file(
     client: httpx.AsyncClient,
     *,
@@ -153,33 +159,34 @@ async def _fetch_selected_file(
     path: str,
     branch: str,
 ) -> str | None:
-    payload = await _get_json(
-        client,
-        f"/repos/{owner}/{repo}/contents/{path}?ref={branch}",
+    """Fetch a selected public file without consuming GitHub REST core quota.
+
+    The authenticated REST client is deliberately not reused here so an optional
+    GitHub token is never forwarded to raw.githubusercontent.com.
+    """
+
+    raw_url = _raw_file_url(
+        owner=owner,
+        repo=repo,
+        branch=branch,
+        path=path,
     )
 
-    if not isinstance(payload, dict):
-        return None
+    async with client.stream("GET", raw_url) as response:
+        if response.status_code == 404:
+            return None
+        if response.status_code >= 400:
+            raise GitHubInspectionError(
+                f"GitHub raw file host returned HTTP {response.status_code}."
+            )
 
-    size = int(payload.get("size") or 0)
-    if size > MAX_SELECTED_FILE_BYTES:
-        return None
+        payload = bytearray()
+        async for chunk in response.aiter_bytes():
+            payload.extend(chunk)
+            if len(payload) > MAX_SELECTED_FILE_BYTES:
+                return None
 
-    content = payload.get("content")
-    encoding = payload.get("encoding")
-
-    if not content or encoding != "base64":
-        return None
-
-    try:
-        raw = base64.b64decode(content, validate=False)
-    except ValueError:
-        return None
-
-    if len(raw) > MAX_SELECTED_FILE_BYTES:
-        return None
-
-    return raw.decode("utf-8", errors="replace")
+    return bytes(payload).decode("utf-8", errors="replace")
 
 
 def _is_excluded_evidence_path(path: str) -> bool:
@@ -375,58 +382,65 @@ async def inspect_public_github_repository(url: str) -> dict:
         connect=min(10.0, float(settings.shipcheck_request_timeout_seconds)),
     )
 
+    # GitHub REST is used only for repository metadata and one recursive tree.
+    # File bodies are fetched from the public raw host using a separate client.
     async with httpx.AsyncClient(
         timeout=timeout,
         headers=_headers(),
         follow_redirects=False,
-    ) as client:
-        repo_payload = await _get_json(client, f"/repos/{ref.owner}/{ref.repo}")
+    ) as api_client:
+        repo_payload = await _get_json(api_client, f"/repos/{ref.owner}/{ref.repo}")
 
         if not isinstance(repo_payload, dict):
             raise GitHubInspectionError("Unexpected GitHub repository response.")
 
         if bool(repo_payload.get("private")):
             raise GitHubInspectionError(
-                "Private GitHub repositories are not supported in v0.3.1."
+                "Private GitHub repositories are not supported in v0.4.1."
             )
 
         default_branch = str(repo_payload.get("default_branch") or "main")
 
         tree_payload = await _get_json(
-            client,
+            api_client,
             f"/repos/{ref.owner}/{ref.repo}/git/trees/{default_branch}?recursive=1",
         )
 
-        if not isinstance(tree_payload, dict):
-            raise GitHubInspectionError("Unexpected GitHub tree response.")
+    if not isinstance(tree_payload, dict):
+        raise GitHubInspectionError("Unexpected GitHub tree response.")
 
-        if tree_payload.get("truncated"):
-            raise GitHubInspectionError(
-                "Repository tree is too large for bounded v0.3.1 inspection."
-            )
+    if tree_payload.get("truncated"):
+        raise GitHubInspectionError(
+            "Repository tree is too large for bounded v0.4.1 inspection."
+        )
 
-        tree = tree_payload.get("tree") or []
-        paths = [
-            str(item.get("path"))
-            for item in tree[:MAX_TREE_ENTRIES]
-            if item.get("type") == "blob" and item.get("path")
-        ]
+    tree = tree_payload.get("tree") or []
+    paths = [
+        str(item.get("path"))
+        for item in tree[:MAX_TREE_ENTRIES]
+        if item.get("type") == "blob" and item.get("path")
+    ]
 
-        selected_paths: list[str] = []
-        for path in paths:
-            lowered_name = path.rsplit("/", 1)[-1].lower()
+    selected_paths: list[str] = []
+    for path in paths:
+        lowered_name = path.rsplit("/", 1)[-1].lower()
 
-            if (
-                lowered_name in _SELECTED_FILENAMES
-                or _is_architecture_path(path)
-            ):
-                selected_paths.append(path)
-            elif lowered_name.endswith(".py") and len(selected_paths) < 45:
-                selected_paths.append(path)
+        if (
+            lowered_name in _SELECTED_FILENAMES
+            or _is_architecture_path(path)
+        ):
+            selected_paths.append(path)
+        elif lowered_name.endswith(".py") and len(selected_paths) < 45:
+            selected_paths.append(path)
 
-        selected_paths = list(dict.fromkeys(selected_paths))[:60]
+    selected_paths = list(dict.fromkeys(selected_paths))[:60]
 
-        file_contents: dict[str, str] = {}
+    file_contents: dict[str, str] = {}
+    async with httpx.AsyncClient(
+        timeout=timeout,
+        headers={"User-Agent": "Shipcheck/0.4.1"},
+        follow_redirects=False,
+    ) as raw_client:
         for path in selected_paths:
             lower = path.lower()
 
@@ -434,7 +448,7 @@ async def inspect_public_github_repository(url: str) -> dict:
                 continue
 
             content = await _fetch_selected_file(
-                client,
+                raw_client,
                 owner=ref.owner,
                 repo=ref.repo,
                 path=path,
@@ -464,5 +478,6 @@ async def inspect_public_github_repository(url: str) -> dict:
             f"Inspected {len(file_contents)} selected text files.",
             "Fixture/test paths are excluded from production evidence.",
             "Container configuration is not treated as proof of live Cloud Run deployment.",
+            "GitHub REST is used only for metadata/tree; file bodies use the public raw host.",
         ],
     }
