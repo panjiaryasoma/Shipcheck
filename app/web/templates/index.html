@@ -15,6 +15,7 @@
       rel="stylesheet"
     >
     <link rel="stylesheet" href="/static/css/app.css">
+    <link rel="stylesheet" href="/static/css/report-actions.css">
     <style>
       [hidden] {
         display: none !important;
@@ -166,9 +167,15 @@
                 <p class="eyebrow">FINAL DISPOSITION</p>
                 <p class="disposition" id="disposition">—</p>
               </div>
-              <div class="inspection-id-block">
-                <span>INSPECTION ID</span>
-                <code id="inspection-id">—</code>
+              <div class="report-decision-meta">
+                <div class="inspection-id-block">
+                  <span>INSPECTION ID</span>
+                  <code id="inspection-id">—</code>
+                </div>
+                <button class="report-download-action" id="download-report" type="button">
+                  <span>Download report</span>
+                  <span>.MD ↓</span>
+                </button>
               </div>
             </div>
 
@@ -215,9 +222,6 @@
                 <p class="section-index">REQUIREMENT LEDGER</p>
                 <h3>Inspected requirements</h3>
               </div>
-              <button class="text-action" id="download-report" type="button">
-                Download report (.md)
-              </button>
             </div>
 
             <div class="findings-list" id="findings-list"></div>
