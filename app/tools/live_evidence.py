@@ -113,6 +113,7 @@ def map_live_requirement(
         "newly created",
         "select one category",
         "text description",
+        "video",
         "youtube",
         "vimeo",
         "subtitle",
