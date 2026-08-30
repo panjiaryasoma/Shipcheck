@@ -1,3 +1,4 @@
+from app.models.cloud_infrastructure import GoogleCloudObservation
 from app.models.repository_inspection import (
     RepositoryArtifact,
     RepositoryInspectionOutput,
@@ -27,6 +28,19 @@ def _req(text: str) -> ExtractedRequirement:
         requirement_text=text,
         requirement_type=RequirementType.CHECKABLE,
         evidence_expected=[],
+    )
+
+
+def _firestore() -> GoogleCloudObservation:
+    return GoogleCloudObservation(
+        service="firestore",
+        verified=True,
+        project_id="demo-project",
+        resource=(
+            "projects/demo-project/databases/(default)/documents/"
+            "shipcheck_inspections/live-123"
+        ),
+        detail="HTTP 200 document write to Cloud Firestore",
     )
 
 
@@ -78,3 +92,31 @@ def test_reachable_cloud_run_runtime_passes_cloud_requirement() -> None:
 
     assert finding.status == EvidenceStatus.VERIFIED
     assert finding.severity == Severity.PASS
+
+
+def test_verified_firestore_write_passes_infrastructure_requirement() -> None:
+    finding = map_live_requirement(
+        _req("Projects must use at least one Google Cloud infrastructure service."),
+        _repo(),
+        DeploymentObservation(False, None, None),
+        cloud_infrastructure=_firestore(),
+    )
+
+    assert finding.status == EvidenceStatus.VERIFIED
+    assert finding.severity == Severity.PASS
+    assert finding.evidence[0].source == "google_cloud"
+    assert "firestore" in (finding.evidence[0].observed_value or "").lower()
+
+
+def test_firestore_does_not_impersonate_cloud_hosted_backend() -> None:
+    finding = map_live_requirement(
+        _req("The backend must be running on Google Cloud."),
+        _repo(),
+        DeploymentObservation(False, None, None),
+        cloud_infrastructure=_firestore(),
+    )
+
+    assert finding.status == EvidenceStatus.UNVERIFIED
+    assert finding.severity == Severity.CRITICAL
+    assert finding.evidence[0].source == "google_cloud"
+    assert "backend/runtime" in finding.reason
