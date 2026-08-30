@@ -416,9 +416,10 @@ async def inspect_public_github_repository(url: str) -> dict:
         for path in paths:
             lowered_name = path.rsplit("/", 1)[-1].lower()
 
-            if lowered_name in _SELECTED_FILENAMES:
-                selected_paths.append(path)
-            elif _is_architecture_path(path):
+            if (
+                lowered_name in _SELECTED_FILENAMES
+                or _is_architecture_path(path)
+            ):
                 selected_paths.append(path)
             elif lowered_name.endswith(".py") and len(selected_paths) < 45:
                 selected_paths.append(path)
