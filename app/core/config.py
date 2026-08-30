@@ -14,6 +14,9 @@ class Settings(BaseSettings):
     shipcheck_env: str = "development"
     shipcheck_request_timeout_seconds: int = 20
     shipcheck_rules_cache_ttl_seconds: int = 3600
+    shipcheck_firestore_enabled: bool = False
+    shipcheck_firestore_database: str = "(default)"
+    shipcheck_firestore_collection: str = "shipcheck_inspections"
 
 
 settings = Settings()
