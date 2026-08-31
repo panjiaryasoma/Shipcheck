@@ -54,9 +54,11 @@ def test_derive_core_repository_artifacts() -> None:
     contents = {
         "README.md": "Setup: uv sync\nRun: uv run uvicorn app.main:app",
         "pyproject.toml": 'dependencies = ["google-adk"]',
-        ".env.example": "SHIPCHECK_MODEL=gemini-3.7-flash\n",
+        ".env.example": "PRIMARY_MODEL=gemini-3.7-flash\n",
         "Dockerfile": "FROM python:3.12-slim",
-        "docs/architecture.md": "# Architecture",
+        "docs/architecture.md": (
+            "# Architecture\nWeb UI -> FastAPI service -> Agent -> Firestore database"
+        ),
         "app/agent.py": (
             "from google.adk.agents import Agent\n"
             "MODEL = 'gemini-3.7-flash'\n"
@@ -71,7 +73,34 @@ def test_derive_core_repository_artifacts() -> None:
     assert "architecture_artifact" in evidence_types
     assert "readme_setup" in evidence_types
     assert "google_adk" in evidence_types
+    assert "google_agent_framework" in evidence_types
     assert "gemini_primary_model_config" in evidence_types
+    assert "dependency_manifest" in evidence_types
     assert "cloud_run_config" in evidence_types
     assert "container_build" in evidence_types
     assert "cloud_run_evidence" not in evidence_types
+
+
+def test_architecture_filename_alone_is_not_automatic_proof() -> None:
+    artifacts = derive_artifacts(
+        paths=["docs/architecture.md"],
+        file_contents={"docs/architecture.md": "# Architecture\nTODO"},
+    )
+    evidence_types = {artifact.evidence_type for artifact in artifacts}
+
+    assert "architecture_candidate" in evidence_types
+    assert "architecture_artifact" not in evidence_types
+
+
+def test_genai_sdk_is_detected_as_supported_google_framework() -> None:
+    artifacts = derive_artifacts(
+        paths=["package.json", "src/agent.ts"],
+        file_contents={
+            "package.json": '{"dependencies":{"@google/genai":"latest"}}',
+            "src/agent.ts": 'import { GoogleGenAI } from "@google/genai";',
+        },
+    )
+    evidence_types = {artifact.evidence_type for artifact in artifacts}
+
+    assert "google_genai_sdk" in evidence_types
+    assert "google_agent_framework" in evidence_types
