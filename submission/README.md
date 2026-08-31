@@ -16,6 +16,7 @@ submission/
 ├── checklist.md
 ├── demo-video-plan.md
 ├── devpost/
+│   ├── form-fields.md
 │   ├── elevator-pitch.md
 │   ├── project-story.md
 │   ├── links.md
@@ -23,6 +24,16 @@ submission/
 └── screenshots/
     └── README.md
 ```
+
+## Devpost working copy
+
+- [`devpost/form-fields.md`](devpost/form-fields.md) contains paste-ready field text.
+- [`devpost/elevator-pitch.md`](devpost/elevator-pitch.md) contains long, short, and one-line positioning.
+- [`devpost/project-story.md`](devpost/project-story.md) contains the full narrative submission draft.
+- [`devpost/testing-instructions.md`](devpost/testing-instructions.md) contains reproducible judge/testing instructions.
+- [`devpost/links.md`](devpost/links.md) tracks required and supporting URLs without inventing missing external links.
+
+The video workflow is tracked separately in [`demo-video-plan.md`](demo-video-plan.md), while [`checklist.md`](checklist.md) records official-submission completion state and entrant-only confirmations.
 
 ## Source-of-truth references
 
