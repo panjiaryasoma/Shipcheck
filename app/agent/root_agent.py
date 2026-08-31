@@ -12,15 +12,9 @@ from app.core.config import settings
 from app.models.rules_extraction import RulesExtractionOutput
 from app.tools.live_rules import fetch_rules_page
 
-if not settings.gemini_api_key:
-    raise RuntimeError(
-        "GEMINI_API_KEY is not configured. Add it to the local .env file."
-    )
+if settings.gemini_api_key:
+    os.environ["GEMINI_API_KEY"] = settings.gemini_api_key
 
-if not settings.shipcheck_model:
-    raise RuntimeError("SHIPCHECK_MODEL is not configured.")
-
-os.environ["GEMINI_API_KEY"] = settings.gemini_api_key
 os.environ["GOOGLE_GENAI_USE_ENTERPRISE"] = "FALSE"
 os.environ["GOOGLE_GENAI_USE_VERTEXAI"] = "FALSE"
 
@@ -76,4 +70,6 @@ def build_rules_agent(model_name: str) -> Agent:
     )
 
 
+# Keep a discovery-friendly root agent without requiring credentials at import time.
+# Live requests validate GEMINI_API_KEY immediately before model execution.
 root_agent = build_rules_agent(settings.shipcheck_model)
