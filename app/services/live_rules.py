@@ -38,6 +38,11 @@ def _model_chain() -> list[str]:
     return list(dict.fromkeys(model for model in candidates if model))
 
 
+def _model_attempt_timeout_seconds() -> int:
+    """Return the bounded timeout for one Gemini model attempt."""
+    return max(5, settings.shipcheck_model_timeout_seconds)
+
+
 def _is_retryable_model_error(exc: BaseException) -> bool:
     """Return True only for provider capacity/quota failures worth failing over."""
     current: BaseException | None = exc
@@ -223,7 +228,7 @@ async def extract_requirements_with_adk(rules_url: str) -> RulesExtractionOutput
 
     models = _model_chain()
     failures: list[str] = []
-    attempt_timeout_seconds = max(1, settings.shipcheck_request_timeout_seconds)
+    attempt_timeout_seconds = _model_attempt_timeout_seconds()
 
     for index, model_name in enumerate(models):
         try:
