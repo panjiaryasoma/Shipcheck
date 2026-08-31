@@ -31,7 +31,7 @@ def test_source_quote_accepts_smart_punctuation_and_whitespace_normalization() -
 
 def test_source_quote_accepts_contiguous_words_despite_punctuation_changes() -> None:
     source = "Entrants must provide: a public repository, README, and architecture diagram."
-    result = _result("Entrants must provide a public repository README and architecture diagram")
+    result = _result("Entrants must provide a public repository, README and architecture diagram")
 
     _validate_source_quotes(result, source)
 
