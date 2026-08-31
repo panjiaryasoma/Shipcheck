@@ -1,6 +1,6 @@
 [project]
 name = "shipcheck"
-version = "0.1.0"
+version = "0.6.0"
 description = "Autonomous preflight inspection for software submissions."
 readme = "README.md"
 requires-python = ">=3.12,<3.13"
