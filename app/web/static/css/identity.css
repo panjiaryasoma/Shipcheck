@@ -4,32 +4,13 @@
  */
 
 .brand-mark {
-  position: relative;
-  overflow: hidden;
-  border: 1px solid var(--orange);
+  display: block;
+  width: 42px;
+  height: 42px;
+  flex: 0 0 42px;
+  object-fit: contain;
+  border: 0;
   background: transparent;
-  color: var(--cream);
-}
-
-.brand-mark::before {
-  content: "";
-  position: absolute;
-  top: 0;
-  right: 0;
-  width: 12px;
-  height: 12px;
-  background: var(--orange);
-}
-
-.brand-mark::after {
-  content: "";
-  position: absolute;
-  right: 4px;
-  bottom: 4px;
-  width: 10px;
-  height: 2px;
-  background: var(--orange);
-  box-shadow: 0 -5px 0 var(--orange);
 }
 
 .panel {
