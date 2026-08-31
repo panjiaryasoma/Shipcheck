@@ -46,6 +46,9 @@ def _is_retryable_model_error(exc: BaseException) -> bool:
     while current is not None and id(current) not in seen:
         seen.add(id(current))
 
+        if isinstance(current, TimeoutError):
+            return True
+
         if isinstance(current, genai_errors.ServerError):
             return True
 
@@ -220,12 +223,16 @@ async def extract_requirements_with_adk(rules_url: str) -> RulesExtractionOutput
 
     models = _model_chain()
     failures: list[str] = []
+    attempt_timeout_seconds = max(1, settings.shipcheck_request_timeout_seconds)
 
     for index, model_name in enumerate(models):
         try:
-            result = await _run_agent_once(
-                rules_url=rules_url,
-                model_name=model_name,
+            result = await asyncio.wait_for(
+                _run_agent_once(
+                    rules_url=rules_url,
+                    model_name=model_name,
+                ),
+                timeout=attempt_timeout_seconds,
             )
             _validate_source_quotes(result, source_text)
             result = result.model_copy(
@@ -242,14 +249,18 @@ async def extract_requirements_with_adk(rules_url: str) -> RulesExtractionOutput
             if not _is_retryable_model_error(exc):
                 raise
 
-            failures.append(f"{model_name}: {type(exc).__name__}")
+            if isinstance(exc, TimeoutError):
+                failures.append(f"{model_name}: timeout after {attempt_timeout_seconds}s")
+            else:
+                failures.append(f"{model_name}: {type(exc).__name__}")
+
             if index < len(models) - 1:
                 await asyncio.sleep(1.0)
                 continue
 
             raise AgentExtractionError(
-                "All configured Gemini models exhausted quota or were temporarily "
-                f"unavailable. Attempts: {', '.join(failures)}"
+                "All configured Gemini models timed out, exhausted quota, or were "
+                f"temporarily unavailable. Attempts: {', '.join(failures)}"
             ) from exc
 
     raise AgentExtractionError("No Gemini model was configured.")
