@@ -4,8 +4,11 @@ from __future__ import annotations
 
 import asyncio
 import hashlib
+import html
 import json
+import re
 import time
+import unicodedata
 from pathlib import Path
 from uuid import uuid4
 
@@ -136,18 +139,66 @@ def _save_cached_result(
         return
 
 
+_PUNCTUATION_EQUIVALENTS = str.maketrans(
+    {
+        "\u00a0": " ",
+        "\u2018": "'",
+        "\u2019": "'",
+        "\u201c": '"',
+        "\u201d": '"',
+        "\u2010": "-",
+        "\u2011": "-",
+        "\u2012": "-",
+        "\u2013": "-",
+        "\u2014": "-",
+        "\u2212": "-",
+    }
+)
+
+
 def _normalize_source_text(value: str) -> str:
-    return " ".join(value.split()).casefold()
+    normalized = html.unescape(unicodedata.normalize("NFKC", value))
+    normalized = normalized.translate(_PUNCTUATION_EQUIVALENTS)
+    normalized = re.sub(r"[\u200b-\u200d\ufeff]", "", normalized)
+    return " ".join(normalized.split()).casefold()
+
+
+def _grounded_quote_tokens(value: str) -> list[str]:
+    """Return punctuation-insensitive word tokens while preserving order."""
+    return re.findall(r"[^\W_]+", _normalize_source_text(value), flags=re.UNICODE)
+
+
+def _quote_is_grounded(source_text: str, source_quote: str) -> bool:
+    """Accept exact text or conservative formatting-only differences.
+
+    Structured-output models sometimes normalize smart quotes, dashes, HTML entities,
+    or whitespace even when instructed to quote verbatim. Those surface differences are
+    harmless. Word order and every word token must still occur contiguously in the
+    fetched source, so paraphrases and invented evidence remain rejected.
+    """
+    normalized_source = _normalize_source_text(source_text)
+    normalized_quote = _normalize_source_text(source_quote)
+
+    if normalized_quote and normalized_quote in normalized_source:
+        return True
+
+    quote_tokens = _grounded_quote_tokens(source_quote)
+    if len(quote_tokens) < 4:
+        return False
+
+    source_tokens = _grounded_quote_tokens(source_text)
+    window = len(quote_tokens)
+    return any(
+        source_tokens[index : index + window] == quote_tokens
+        for index in range(len(source_tokens) - window + 1)
+    )
 
 
 def _validate_source_quotes(result: RulesExtractionOutput, source_text: str) -> None:
-    normalized_source = _normalize_source_text(source_text)
-
     for requirement in result.requirements:
-        normalized_quote = _normalize_source_text(requirement.source_quote)
-        if not normalized_quote or normalized_quote not in normalized_source:
+        if not _quote_is_grounded(source_text, requirement.source_quote):
             raise AgentExtractionError(
-                "ADK output contained a source_quote that could not be found in the "
+                "ADK output contained a source_quote that could not be grounded in the "
                 f"fetched rules text ({requirement.requirement_id})."
             )
 
