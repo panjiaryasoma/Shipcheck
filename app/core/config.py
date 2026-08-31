@@ -9,7 +9,7 @@ class Settings(BaseSettings):
     google_cloud_location: str = "us-central1"
     github_token: str | None = None
 
-    shipcheck_model: str | None = None
+    shipcheck_model: str = "gemini-3.7-flash"
     shipcheck_fallback_models: str = "gemini-3.6-flash,gemini-3.5-flash"
     shipcheck_env: str = "development"
     shipcheck_request_timeout_seconds: int = 20
