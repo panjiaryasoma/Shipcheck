@@ -25,9 +25,25 @@ def test_fixture_architecture_does_not_count_as_production_evidence() -> None:
     assert architecture == []
 
 
-def test_production_architecture_still_counts() -> None:
+def test_thin_production_architecture_is_candidate_not_verified_artifact() -> None:
     paths = ["docs/ARCHITECTURE.md"]
     contents = {"docs/ARCHITECTURE.md": "# Architecture"}
+
+    artifacts = derive_artifacts(paths=paths, file_contents=contents)
+    evidence_types = _types(artifacts)
+
+    assert "architecture_candidate" in evidence_types
+    assert "architecture_artifact" not in evidence_types
+
+
+def test_production_architecture_with_topology_counts_as_verified_artifact() -> None:
+    paths = ["docs/ARCHITECTURE.md"]
+    contents = {
+        "docs/ARCHITECTURE.md": (
+            "# Architecture\n"
+            "Web UI -> FastAPI service -> Agent -> Firestore database"
+        )
+    }
 
     artifacts = derive_artifacts(paths=paths, file_contents=contents)
 
