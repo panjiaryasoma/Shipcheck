@@ -6,6 +6,7 @@ import asyncio
 import ipaddress
 import re
 import socket
+import time
 from urllib.parse import urljoin, urlparse
 
 import httpx
@@ -17,6 +18,12 @@ from app.core.version import SHIPCHECK_USER_AGENT
 MAX_RESPONSE_BYTES = 750_000
 MAX_CLEAN_TEXT_CHARS = 80_000
 MAX_REDIRECTS = 3
+_FETCH_REUSE_TTL_SECONDS = 30
+_FETCH_REUSE_MAX_ENTRIES = 32
+_FETCH_REUSE_CACHE: dict[
+    str,
+    tuple[float, dict[str, str | int | None]],
+] = {}
 
 _ALLOWED_CONTENT_TYPES = (
     "text/html",
@@ -27,6 +34,27 @@ _ALLOWED_CONTENT_TYPES = (
 
 class RulesFetchError(RuntimeError):
     """Raised when Shipcheck cannot safely retrieve a public rules page."""
+
+
+def _reuse_cached_snapshot(url: str) -> dict[str, str | int | None] | None:
+    cached = _FETCH_REUSE_CACHE.get(url)
+    if cached is None:
+        return None
+
+    cached_at, snapshot = cached
+    if time.monotonic() - cached_at > _FETCH_REUSE_TTL_SECONDS:
+        _FETCH_REUSE_CACHE.pop(url, None)
+        return None
+
+    return dict(snapshot)
+
+
+def _remember_snapshot(url: str, snapshot: dict[str, str | int | None]) -> None:
+    if len(_FETCH_REUSE_CACHE) >= _FETCH_REUSE_MAX_ENTRIES:
+        oldest_url = min(_FETCH_REUSE_CACHE, key=lambda key: _FETCH_REUSE_CACHE[key][0])
+        _FETCH_REUSE_CACHE.pop(oldest_url, None)
+
+    _FETCH_REUSE_CACHE[url] = (time.monotonic(), dict(snapshot))
 
 
 def _reject_obvious_local_host(hostname: str) -> None:
@@ -132,6 +160,10 @@ async def fetch_rules_page(url: str) -> dict[str, str | int | None]:
     Use this tool when Shipcheck needs to inspect a public rules, FAQ, or submission
     requirements page. Local/private targets are rejected.
     """
+    reused = _reuse_cached_snapshot(url)
+    if reused is not None:
+        return reused
+
     current_url = url
 
     timeout = httpx.Timeout(
@@ -194,13 +226,17 @@ async def fetch_rules_page(url: str) -> dict[str, str | int | None]:
                         raise RulesFetchError(
                             "Rules page did not contain extractable text."
                         )
-                    return {
+                    snapshot = {
                         "source_url": current_url,
                         "page_title": None,
                         "text": cleaned,
                         "text_chars": len(cleaned),
                     }
+                    _remember_snapshot(url, snapshot)
+                    return snapshot
 
-                return _clean_html(raw_text, current_url)
+                snapshot = _clean_html(raw_text, current_url)
+                _remember_snapshot(url, snapshot)
+                return snapshot
 
     raise RulesFetchError("Rules page could not be retrieved.")
