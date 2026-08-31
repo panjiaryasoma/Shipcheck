@@ -1,7 +1,15 @@
+from app.core.config import settings
 from app.services.live_rules import _is_retryable_model_error, _model_chain
 
 
-def test_model_chain_preserves_primary_first() -> None:
+def test_model_chain_preserves_primary_first(monkeypatch) -> None:
+    monkeypatch.setattr(settings, "shipcheck_model", "gemini-3.7-flash")
+    monkeypatch.setattr(
+        settings,
+        "shipcheck_fallback_models",
+        "gemini-3.6-flash,gemini-3.5-flash",
+    )
+
     models = _model_chain()
 
     assert models[0] == "gemini-3.7-flash"
