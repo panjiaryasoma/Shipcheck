@@ -41,6 +41,19 @@ def _manual(requirement: ExtractedRequirement, reason: str) -> Finding:
     )
 
 
+def _not_applicable(requirement: ExtractedRequirement, reason: str) -> Finding:
+    return Finding(
+        requirement_id=requirement.requirement_id,
+        requirement_text=requirement.requirement_text,
+        requirement_type=requirement.requirement_type,
+        status=EvidenceStatus.NOT_APPLICABLE,
+        severity=Severity.PASS,
+        evidence=[],
+        reason=reason,
+        recommended_action=None,
+    )
+
+
 def _verified(
     requirement: ExtractedRequirement,
     artifact: RepositoryArtifact,
@@ -95,13 +108,25 @@ def _unverified_with_evidence(
     )
 
 
-def _firestore_evidence(observation: GoogleCloudObservation) -> Evidence:
+def _firestore_evidence(
+    observation: GoogleCloudObservation,
+    *,
+    accepted_as_target: bool = False,
+) -> Evidence:
+    if accepted_as_target:
+        scope_note = (
+            "inspector-runtime observation accepted as target-project evidence only for "
+            "the caller-established self-inspection scope"
+        )
+    else:
+        scope_note = f"observation_scope={observation.scope}"
+
     return Evidence(
         source="google_cloud",
         path_or_url=observation.resource,
         observed_value=(
             f"Verified {observation.service} operation in project "
-            f"{observation.project_id}: {observation.detail}; scope={observation.scope}"
+            f"{observation.project_id}: {observation.detail}; {scope_note}"
         ),
     )
 
@@ -132,16 +157,23 @@ def map_live_requirement(
     text = requirement.requirement_text.lower()
     artifacts = _artifact_index(repository)
 
+    timing_markers = (
+        "submission period",
+        "submission deadline",
+        "deadline",
+        "must be submitted during",
+    )
+    if any(marker in text for marker in timing_markers):
+        return _manual(
+            requirement,
+            "Submission timing or deadline requirements depend on current competition and "
+            "submission-state evidence, which Shipcheck does not verify automatically.",
+        )
+
     if requirement.requirement_type == RequirementType.INFORMATIONAL:
-        return Finding(
-            requirement_id=requirement.requirement_id,
-            requirement_text=requirement.requirement_text,
-            requirement_type=requirement.requirement_type,
-            status=EvidenceStatus.NOT_APPLICABLE,
-            severity=Severity.PASS,
-            evidence=[],
-            reason="Informational rule; no automated compliance verdict is required.",
-            recommended_action=None,
+        return _not_applicable(
+            requirement,
+            "Informational rule; no automated compliance verdict is required.",
         )
 
     if requirement.requirement_type == RequirementType.MANUAL_REVIEW:
@@ -157,7 +189,6 @@ def map_live_requirement(
         "representative",
         "intellectual property",
         "original work",
-        "submission period",
         "newly created",
         "select one category",
         "text description",
@@ -257,10 +288,16 @@ def map_live_requirement(
                 requirement_type=requirement.requirement_type,
                 status=EvidenceStatus.VERIFIED,
                 severity=Severity.PASS,
-                evidence=[_firestore_evidence(cloud_infrastructure)],
+                evidence=[
+                    _firestore_evidence(
+                        cloud_infrastructure,
+                        accepted_as_target=True,
+                    )
+                ],
                 reason=(
-                    "A live Google Cloud Firestore operation was accepted within the "
-                    "caller-established target evidence scope."
+                    "A live Google Cloud Firestore operation was verified. The "
+                    "inspector-runtime observation is accepted as target-project evidence "
+                    "only for this caller-established self-inspection scope."
                 ),
                 recommended_action=None,
             )
@@ -362,6 +399,13 @@ def map_live_requirement(
             requirement,
             "README setup/run instructions were not detected.",
             "Add step-by-step local or cloud setup instructions to README.md.",
+        )
+
+    if repository.public and "repository is private" in text:
+        return _not_applicable(
+            requirement,
+            "This rule applies only when the submitted code repository is private; the "
+            "inspected repository is public.",
         )
 
     if "repository" in text or "github" in text or "gitlab" in text or "bitbucket" in text:
