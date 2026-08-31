@@ -19,5 +19,9 @@ def test_resource_exhausted_wrapper_is_retryable() -> None:
     assert _is_retryable_model_error(exc) is True
 
 
+def test_model_timeout_is_retryable() -> None:
+    assert _is_retryable_model_error(TimeoutError("model attempt timed out")) is True
+
+
 def test_unrelated_application_error_is_not_retryable() -> None:
     assert _is_retryable_model_error(ValueError("invalid schema")) is False
