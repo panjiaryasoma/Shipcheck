@@ -5,6 +5,7 @@ from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
+from app.core.version import SHIPCHECK_VERSION
 from app.models.rules_extraction import LiveRulesRequest
 from app.models.schemas import InspectionRequest
 from app.services.inspection import inspect_fixture, inspect_live_submission
@@ -14,7 +15,7 @@ from app.tools.live_rules import RulesFetchError
 
 app = FastAPI(
     title="Shipcheck",
-    version="0.5.0",
+    version=SHIPCHECK_VERSION,
     description="Autonomous preflight inspection for software submissions.",
 )
 
@@ -31,7 +32,7 @@ async def index(request: Request):
 
 @app.get("/health")
 async def health() -> dict[str, str]:
-    return {"status": "ok", "service": "shipcheck", "version": "0.5.0"}
+    return {"status": "ok", "service": "shipcheck", "version": SHIPCHECK_VERSION}
 
 
 @app.get("/api/fixtures/{fixture_name}/inspect")
