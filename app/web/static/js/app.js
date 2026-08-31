@@ -8,10 +8,18 @@ const reportContent = document.querySelector("#report-content");
 const reportPanel = document.querySelector("#report-panel");
 const findingsList = document.querySelector("#findings-list");
 const downloadButton = document.querySelector("#download-report");
+const passedLabel = document
+  .querySelector("#summary-passed")
+  ?.closest(".summary-cell")
+  ?.querySelector(".summary-label");
 const highWarningLabel = document
   .querySelector("#summary-warning")
   ?.closest(".summary-cell")
   ?.querySelector(".summary-label");
+
+if (passedLabel) {
+  passedLabel.textContent = "Passed";
+}
 
 if (highWarningLabel) {
   highWarningLabel.textContent = "High / warning";
@@ -28,9 +36,36 @@ function text(elementId, value) {
   document.querySelector(`#${elementId}`).textContent = value ?? "—";
 }
 
-function link(elementId, value) {
+function compactUrlForDisplay(value) {
+  if (!value) {
+    return value;
+  }
+
+  try {
+    const url = new URL(value);
+    const trackingKeys = [...url.searchParams.keys()].filter((key) => {
+      const normalized = key.toLowerCase();
+      return (
+        normalized.startsWith("utm_") ||
+        normalized === "gclid" ||
+        normalized === "fbclid" ||
+        normalized === "_gl" ||
+        normalized.startsWith("_ga") ||
+        normalized.startsWith("_gcl_")
+      );
+    });
+
+    trackingKeys.forEach((key) => url.searchParams.delete(key));
+    url.hash = "";
+    return url.toString();
+  } catch {
+    return value;
+  }
+}
+
+function link(elementId, value, displayValue = value) {
   const element = document.querySelector(`#${elementId}`);
-  element.textContent = value ?? "—";
+  element.textContent = displayValue ?? "—";
   if (value) {
     element.href = value;
     element.removeAttribute("aria-disabled");
@@ -117,7 +152,7 @@ function renderReport(report) {
   reportPanel.querySelector(".error-message")?.remove();
 
   const disposition = document.querySelector("#disposition");
-  disposition.textContent = report.final_disposition;
+  disposition.textContent = String(report.final_disposition || "—").replaceAll("_", " ");
   disposition.dataset.disposition = report.final_disposition;
 
   text("inspection-id", report.inspection_id);
@@ -131,7 +166,11 @@ function renderReport(report) {
   text("model-used", report.model_used || "not reported");
   text("fallback-used", report.fallback_used ? "yes" : "no");
   link("report-repository", report.repository_url);
-  link("report-rules", report.rules_source);
+  link(
+    "report-rules",
+    report.rules_source,
+    compactUrlForDisplay(report.rules_source),
+  );
 
   findingsList.replaceChildren();
   (report.findings || []).forEach((finding, index) => {
@@ -306,7 +345,7 @@ function reportAsMarkdown(report) {
     "",
     "## Summary",
     "",
-    `- **Verified:** ${summary.passed ?? 0}`,
+    `- **Passed:** ${summary.passed ?? 0}`,
     `- **Manual review:** ${summary.manual_review ?? 0}`,
     `- **High:** ${summary.high ?? 0}`,
     `- **Warnings:** ${summary.warning ?? 0}`,
