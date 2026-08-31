@@ -12,6 +12,8 @@ def test_root_serves_inspection_workspace() -> None:
     assert response.status_code == 200
     assert "text/html" in response.headers["content-type"]
     assert "Not cleared until proven." in response.text
+    assert "READY / REVIEW / HOLD" in response.text
+    assert "Inspector model" in response.text
     assert 'id="inspection-form"' in response.text
     assert 'id="report-panel"' in response.text
     assert 'id="download-report"' in response.text
@@ -22,13 +24,17 @@ def test_root_serves_inspection_workspace() -> None:
     assert 'src="/static/js/app.js"' in response.text
 
 
-def test_report_export_uses_markdown() -> None:
+def test_report_export_uses_markdown_with_provenance_and_high_count() -> None:
     response = client.get("/static/js/app.js")
 
     assert response.status_code == 200
     assert "text/markdown;charset=utf-8" in response.text
     assert 'anchor.download = `${latestReport.inspection_id || "shipcheck-report"}.md`' in response.text
     assert "# Shipcheck Inspection Report" in response.text
+    assert "**Agent version:**" in response.text
+    assert "**Inspector model:**" in response.text
+    assert "**High:**" in response.text
+    assert 'highWarningLabel.textContent = "High / warning"' in response.text
 
 
 def test_report_findings_include_evidence_trace_markers() -> None:
