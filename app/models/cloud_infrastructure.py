@@ -12,3 +12,4 @@ class GoogleCloudObservation:
     project_id: str | None = None
     resource: str | None = None
     detail: str | None = None
+    scope: str = "inspector_runtime"
