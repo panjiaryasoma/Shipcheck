@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import asyncio
-from datetime import UTC, datetime
 from urllib.parse import quote
 
 import google.auth
@@ -41,10 +40,10 @@ def _access_token_and_project() -> tuple[str, str]:
 
 
 def _firestore_fields(report: LiveInspectionReport) -> dict[str, dict]:
-    created_at = datetime.now(UTC).isoformat().replace("+00:00", "Z")
-
     return {
         "inspection_id": {"stringValue": report.inspection_id},
+        "timestamp": {"timestampValue": report.timestamp},
+        "agent_version": {"stringValue": report.agent_version},
         "rules_source": {"stringValue": report.rules_source},
         "repository_url": {"stringValue": report.repository_url},
         "deployment_url": {"stringValue": report.deployment_url or ""},
@@ -53,7 +52,7 @@ def _firestore_fields(report: LiveInspectionReport) -> dict[str, dict]:
         "final_disposition": {"stringValue": report.final_disposition.value},
         "summary_json": {"stringValue": report.summary.model_dump_json()},
         "report_json": {"stringValue": report.model_dump_json()},
-        "created_at": {"timestampValue": created_at},
+        "created_at": {"timestampValue": report.timestamp},
     }
 
 
@@ -107,6 +106,7 @@ async def persist_live_inspection_with_evidence(
         project_id=project,
         resource=_resource_path(project, report),
         detail=f"HTTP {response.status_code} document write to Cloud Firestore",
+        scope="inspector_runtime",
     )
 
 
