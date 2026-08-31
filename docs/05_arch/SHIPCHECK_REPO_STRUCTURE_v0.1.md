@@ -33,7 +33,7 @@ Shipcheck/
 ├── fixtures/                      # deterministic rules/repository fixtures
 ├── reports/
 │   ├── README.md
-│   └── v06/                       # recorded verification artifacts for runtime v0.6.x
+│   └── v01/                       # first formal verification report set
 ├── scripts/                       # live smoke utilities
 ├── submission/                    # submission-specific materials
 ├── tests/
