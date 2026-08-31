@@ -22,53 +22,41 @@ Show the Shipcheck inspection workspace before execution with:
 
 `02_evidence_register.png`
 
-Show a completed inspection with:
+Show the canonical completed self-inspection with:
 
-- `READY`, `NEEDS_REVIEW`, or `HOLD`;
+- `NEEDS_REVIEW` final disposition;
 - summary counts;
 - inspector model provenance;
 - repository and rules-source provenance;
 - visible requirement findings.
 
-For the All Things Agentic self-inspection, `NEEDS_REVIEW` is an acceptable and expected result when human-only submission requirements remain unresolved while no critical blocker exists.
+For the All Things Agentic self-inspection, `NEEDS_REVIEW` is the expected conservative result when human-only submission requirements remain unresolved while no critical blocker exists.
 
-### 03 — Gemini + Google Agent Framework evidence
+### 03 — Mandatory technology evidence
 
 `03_requirement_evidence.png`
 
-Prefer a frame showing both mandatory technology requirements when possible:
+Show the strongest requirement-level technology evidence in one application frame where possible, including:
 
 - Gemini 3.5 or newer → `VERIFIED`;
 - supported Google Agent Framework / Google ADK → `VERIFIED`;
-- concrete repository paths or configuration evidence;
+- Google Cloud infrastructure / Firestore → `VERIFIED` when visible;
+- concrete repository or cloud evidence;
 - requirement text and reason.
 
-### 04 — Google Cloud requirement evidence
+### 04 — Google Cloud Firestore audit proof
 
-`04_requirement_evidence.png`
-
-Show the requirement-level Google Cloud infrastructure finding in Shipcheck itself, including:
-
-- the Google Cloud infrastructure requirement;
-- `VERIFIED` status for scoped self-inspection;
-- Firestore resource evidence;
-- wording that makes the self-inspection evidence boundary explicit.
-
-This screenshot is application-level evidence. It does not replace the Google Cloud Console capture below.
-
-### 05 — Google Cloud Firestore audit proof
-
-`05_firestore_audit.png`
+`04_firestore_audit.png`
 
 Show Google Cloud Console with:
 
 - the Shipcheck Google Cloud project;
 - Cloud Firestore;
 - collection `shipcheck_inspections`;
-- a real persisted inspection document;
+- the persisted document for the canonical self-inspection;
 - visible fields such as inspection ID, final disposition, model used, repository URL, or timestamp when practical.
 
-Hide or crop unrelated account information and credentials.
+This console capture is the strongest visual proof that the live inspection produced a real Google Cloud audit record. Hide or crop unrelated account information and credentials.
 
 ## Canonical architecture assets
 
