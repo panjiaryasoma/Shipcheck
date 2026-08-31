@@ -6,7 +6,7 @@
 **Hackathon:** All Things Agentic Hackathon  
 **Primary Track:** Taskmaster  
 **Date:** 31 August 2026  
-**Source:** `docs/PROBLEM_BRIEF.md`
+**Source:** `docs/01_problem/SHIPCHECK_PROBLEM_BRIEF_v0.1.md`
 
 ---
 
