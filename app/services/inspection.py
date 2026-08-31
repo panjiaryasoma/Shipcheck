@@ -4,8 +4,10 @@ from __future__ import annotations
 
 import asyncio
 from pathlib import Path
+from urllib.parse import urlparse
 from uuid import uuid4
 
+from app.core.config import settings
 from app.models.cloud_infrastructure import GoogleCloudObservation
 from app.models.live_inspection import InspectionSummary, LiveInspectionReport
 from app.models.repository_inspection import RepositoryInspectionOutput
@@ -58,6 +60,29 @@ def _summarize(findings) -> InspectionSummary:
         warning=sum(f.severity == Severity.WARNING for f in findings),
         passed=sum(f.severity == Severity.PASS for f in findings),
         manual_review=sum(f.status == EvidenceStatus.MANUAL_REVIEW for f in findings),
+    )
+
+
+def _canonical_repository_url(value: str) -> str:
+    parsed = urlparse(value)
+    hostname = (parsed.hostname or "").lower()
+    parts = [part for part in parsed.path.split("/") if part]
+
+    if hostname in {"github.com", "www.github.com"} and len(parts) >= 2:
+        owner = parts[0].lower()
+        repository = parts[1].removesuffix(".git").lower()
+        return f"https://github.com/{owner}/{repository}"
+
+    return value.rstrip("/").lower()
+
+
+def _cloud_evidence_applies_to_target(repository_url: str) -> bool:
+    configured_self_repository = settings.shipcheck_self_repository_url
+    if not configured_self_repository:
+        return False
+
+    return _canonical_repository_url(repository_url) == _canonical_repository_url(
+        configured_self_repository
     )
 
 
@@ -125,22 +150,33 @@ async def inspect_live_submission(
 
     cloud_observation = await persist_live_inspection_with_evidence(report)
     if cloud_observation:
-        findings = _live_findings(
-            rules=rules,
-            repository=repository,
-            deployment=deployment,
-            submission_claims=request.submission_claims,
-            cloud_infrastructure=cloud_observation,
-        )
-        report.findings = findings
-        report.final_disposition = derive_final_disposition(findings)
-        report.summary = _summarize(findings)
         report.notes.append(
             "Persisted this live inspection as an audit record in Google Cloud Firestore."
         )
 
-        # Rewrite the same document so the stored audit record contains the final
-        # verdict after the successful Firestore operation becomes inspectable evidence.
+        if _cloud_evidence_applies_to_target(repository.repository_url):
+            findings = _live_findings(
+                rules=rules,
+                repository=repository,
+                deployment=deployment,
+                submission_claims=request.submission_claims,
+                cloud_infrastructure=cloud_observation,
+            )
+            report.findings = findings
+            report.final_disposition = derive_final_disposition(findings)
+            report.summary = _summarize(findings)
+            report.notes.append(
+                "The Firestore operation is eligible as target-project evidence because "
+                "the inspected repository matches SHIPCHECK_SELF_REPOSITORY_URL."
+            )
+        else:
+            report.notes.append(
+                "The Firestore audit write is inspector-runtime evidence only and was not "
+                "used to satisfy Google Cloud requirements for the inspected repository."
+            )
+
+        # Rewrite the same document so the stored audit record contains the final verdict
+        # and the evidence-scope note after the successful Firestore operation.
         await persist_live_inspection(report)
 
     return report
