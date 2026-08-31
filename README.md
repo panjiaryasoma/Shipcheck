@@ -277,9 +277,14 @@ Shipcheck/
 ├── fixtures/                       # deterministic rules/repository fixtures
 ├── reports/
 │   ├── README.md                   # report provenance contract
-│   └── v06/                        # recorded runtime-v0.6 verification artifacts
+│   └── v01/                        # first formal verification report set
 ├── scripts/                        # live smoke utilities
-├── submission/                     # submission-specific materials
+├── submission/
+│   ├── README.md                   # submission package index
+│   ├── checklist.md                # official-requirements completion state
+│   ├── demo-video-plan.md          # four-minute demo plan
+│   ├── devpost/                    # paste-ready Devpost copy and links
+│   └── screenshots/                # final screenshot capture set
 ├── tests/
 │   ├── unit/
 │   ├── integration/
@@ -291,6 +296,14 @@ Shipcheck/
 ```
 
 For the complete repository ownership map, see [`docs/05_arch/SHIPCHECK_REPO_STRUCTURE_v0.1.md`](docs/05_arch/SHIPCHECK_REPO_STRUCTURE_v0.1.md).
+
+## Submission package
+
+Working All Things Agentic Hackathon materials live under [`submission/`](submission/README.md).
+
+The package includes a paste-ready Devpost field sheet, elevator pitch, full project story, testing instructions, link tracker, four-minute demo plan, screenshot plan, and official-requirements checklist. Missing external artifacts such as the public video URL, hosted-project URL, final Devpost URL, and optional release tag remain explicit `TODO`s until they actually exist.
+
+No final freeze is implied by the submission package.
 
 ## API
 
@@ -373,7 +386,7 @@ Key project records include:
 - [`docs/05_arch/Flowchart.png`](docs/05_arch/Flowchart.png)
 - [`docs/05_arch/Architecture.png`](docs/05_arch/Architecture.png)
 
-Recorded verification artifacts belong under [`reports/`](reports/).
+Recorded verification artifacts belong under [`reports/`](reports/). Working hackathon submission materials belong under [`submission/`](submission/README.md).
 
 ---
 
