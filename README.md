@@ -17,6 +17,8 @@ The project was built for **All Things Agentic Hackathon · Taskmaster**.
 
 `READY` means no unresolved blocker or review gate was found within the evidence Shipcheck could inspect. It is not a guarantee of eligibility, judge acceptance, or competition success.
 
+![Shipcheck thumbnail](thumbnail.png)
+
 ## Why preflight?
 
 A project can work perfectly and still fail at submission.
