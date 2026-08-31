@@ -1,5 +1,6 @@
 from fastapi.testclient import TestClient
 
+from app.core.version import SHIPCHECK_VERSION
 from app.main import app
 
 client = TestClient(app)
@@ -38,8 +39,8 @@ def test_report_findings_include_evidence_trace_markers() -> None:
     assert 'trace.textContent = `EVD-${String(index + 1).padStart(2, "0")}`' in response.text
 
 
-def test_health_reports_current_ui_version() -> None:
+def test_health_reports_current_runtime_version() -> None:
     response = client.get("/health")
 
     assert response.status_code == 200
-    assert response.json()["version"] == "0.5.0"
+    assert response.json()["version"] == SHIPCHECK_VERSION
