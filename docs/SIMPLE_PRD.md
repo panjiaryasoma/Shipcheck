@@ -1,18 +1,18 @@
 # SHIPCHECK — SIMPLE PRODUCT REQUIREMENTS DOCUMENT
 
-**Version:** 0.1  
-**Status:** Scope Locked for MVP  
+**Version:** 0.2  
+**Status:** MVP Contract — Implementation Aligned  
 **Project:** Shipcheck  
 **Hackathon:** All Things Agentic Hackathon  
 **Primary Track:** Taskmaster  
-**Date:** 30 August 2026  
-**Source:** `SHIPCHECK_PROBLEM_BRIEF_v0.1.md`
+**Date:** 31 August 2026  
+**Source:** `docs/PROBLEM_BRIEF.md`
 
 ---
 
 ## 1. Product Summary
 
-Shipcheck is an autonomous preflight agent for software submissions.
+Shipcheck is an autonomous preflight inspector for software submissions.
 
 A user provides:
 
@@ -20,17 +20,22 @@ A user provides:
 1. Competition / rules URL
 2. Public GitHub repository
 3. Optional deployed application URL
+4. Optional declared submission claims
 ```
 
-Shipcheck converts explicit submission rules into inspectable checks, gathers evidence from the repository and runtime, detects missing or contradictory evidence, ranks findings by severity, and returns a final disposition:
+Shipcheck converts explicit submission rules into structured requirements, gathers
+bounded repository/runtime evidence, distinguishes missing proof from direct
+contradiction, ranks findings, and returns one disposition:
 
 ```text
 READY
-or
-HOLD / BLOCKED
+HOLD
+NEEDS_REVIEW
 ```
 
-Shipcheck does not decide whether a project deserves to win. It checks whether the submission can prove what it claims and whether machine-verifiable requirements appear satisfied.
+Shipcheck does not decide whether a project deserves to win and does not guarantee
+submission eligibility. `READY` means no unresolved release gate was found within the
+scope Shipcheck could inspect.
 
 ---
 
@@ -38,15 +43,17 @@ Shipcheck does not decide whether a project deserves to win. It checks whether t
 
 A developer or hackathon participant preparing a software project for submission.
 
-The user already has a project and needs to answer:
+Core question:
 
-> “Is this submission actually ready to ship?”
+> “Is this submission actually ready to ship, and what evidence supports that answer?”
 
 ---
 
 ## 3. Core Job To Be Done
 
-> Before I submit my software project, inspect the rules, repository, and deployment; tell me what is proven, what is missing, what contradicts my claims, and what I must fix first.
+> Before I submit my software project, inspect the rules, repository, deployment, and
+> declared claims; tell me what is proven, what is missing, what is directly
+> contradicted, what still needs a human, and what I must fix first.
 
 ---
 
@@ -63,32 +70,37 @@ repository_url
 
 ```text
 deployment_url
-submission_claims
+submission_claims[]
 ```
 
-### Initial constraints
+### Constraints
 
-- repository must be public;
-- rules must be retrievable from a public page;
-- only bounded repository inspection is supported;
-- private repository authentication is out of scope.
+- repository must be public GitHub over HTTPS;
+- rule targets must resolve to public HTTP(S) addresses;
+- local/private targets are rejected;
+- repository inspection is bounded by file count and file size;
+- private-repository authentication is out of scope;
+- untrusted repository code is not executed.
 
 ---
 
 ## 5. MVP Output Contract
 
-Shipcheck returns one inspection report containing:
-
 ### Metadata
 
 ```text
 inspection_id
-rules_source
-repository
-deployment
 timestamp
 agent_version
+rules_source
+repository_url
+deployment_url
+model_used
+fallback_used
 ```
+
+`model_used` means the **Shipcheck inspector model used for rules extraction**, not the
+model used by the inspected target project.
 
 ### Summary
 
@@ -109,9 +121,9 @@ passed
 manual_review
 ```
 
-### Findings
+### Finding
 
-Each finding must contain:
+Each finding contains:
 
 ```text
 requirement_id
@@ -119,14 +131,12 @@ requirement_text
 requirement_type
 status
 severity
-evidence
+evidence[]
 reason
 recommended_action
 ```
 
 ### Evidence status
-
-Allowed values:
 
 ```text
 VERIFIED
@@ -141,290 +151,215 @@ NOT_APPLICABLE
 
 ## 6. Requirement Classification
 
-Every extracted rule must be classified as one of:
-
 ### CHECKABLE
 
-Can be evaluated using available tools.
+Can receive an automated evidence verdict from a bounded checker.
 
 Examples:
 
 ```text
-Architecture diagram required
 Repository must be public
-Required framework must be used
-Cloud deployment must be reachable
+Required Google framework must be evidenced
+Gemini minimum version must be evidenced
 README must contain setup instructions
+Cloud deployment must be reachable
+Architecture evidence must exist
 ```
 
 ### MANUAL_REVIEW
 
-Requires subjective or human judgment.
+Requires a human or subjective judgment.
 
 Examples:
 
 ```text
-Project should be innovative
-Demo should be compelling
-Submission should provide social value
+Eligibility declarations
+Original-work declarations
+Video/subtitle requirements
+Judging criteria
+Innovation quality
 ```
 
 ### INFORMATIONAL
 
-Useful context but not a pass/fail requirement.
+Context that should not create a pass/fail obligation.
 
-Examples:
-
-```text
-Prize information
-Organizer description
-Workshop schedule
-```
-
-Only `CHECKABLE` requirements may produce automated compliance verdicts.
+Only `CHECKABLE` requirements may receive automated compliance claims.
 
 ---
 
-## 7. Agent Architecture
+## 7. Runtime Architecture
 
-The MVP uses one Google ADK agent with scoped tools.
+Shipcheck uses one Google ADK rules agent surrounded by deterministic application
+services.
 
 ```text
-Web UI
-   ↓
-Cloud Run API
-   ↓
-Shipcheck ADK Agent
-   ↓
-Gemini 3.5+
-   │
-   ├── Rules Tool
-   ├── Repository Inspector
-   ├── Reproduction Checker
-   ├── Deployment Verifier
-   ├── Evidence Mapper
-   ├── Contradiction Detector
-   └── Risk Planner
+Web UI / API
+    |
+    v
+FastAPI Inspection Orchestrator
+    |
+    +-- Google ADK Rules Agent
+    |      +-- Gemini 3.5+
+    |      `-- bounded rules fetch tool
+    |
+    +-- Public GitHub Inspector
+    +-- Static Reproduction Checker
+    +-- Deployment Verifier
+    +-- Evidence Mapper
+    +-- Claim Evidence Checker
+    +-- Disposition Engine
+    `-- Optional Firestore Audit Persistence
 ```
 
-No multi-agent architecture is required for v0.1.
+The ADK agent owns natural-language rules interpretation. It does **not** pretend to own
+repository inspection, deployment verification, risk logic, or database persistence.
+Those remain isolated deterministic services coordinated by the FastAPI inspection
+orchestrator.
+
+No multi-agent architecture is required for the MVP.
 
 ---
 
-## 8. Tool Contracts
+## 8. Tool and Service Contracts
 
-## 8.1 Rules Tool
+### 8.1 Rules Tool + ADK Rules Agent
 
-### Purpose
+Purpose: retrieve a public rules page and extract explicit requirements.
 
-Retrieve rule pages and extract explicit requirements.
+Must:
 
-### Input
+- use the bounded public-page tool;
+- preserve a short `source_quote` for every extracted requirement;
+- validate uncached `source_quote` values against the fetched rules text;
+- distinguish mandatory language from optional/informational text;
+- route subjective requirements to `MANUAL_REVIEW`;
+- record the actual Gemini model and fallback state;
+- never invent evidence or requirements.
 
-```text
-rules_url
-```
+Caching:
 
-### Output
+- cache is an optimization, not evidence;
+- cache key includes rules URL plus fetched-content digest;
+- stale content therefore does not silently reuse a prior extraction.
 
-```text
-requirement_id
-source_section
-requirement_text
-requirement_type
-evidence_expected
-```
+### 8.2 Repository Inspector
 
-### Must
+Purpose: inspect bounded public GitHub evidence without executing repository code.
 
-- preserve source wording where practical;
-- distinguish explicit rules from model inference;
-- classify ambiguous requirements as `MANUAL_REVIEW`;
-- never invent a mandatory requirement.
-
----
-
-## 8.2 Repository Inspector
-
-### Purpose
-
-Inspect repository structure and implementation evidence.
-
-### Input
-
-```text
-repository_url
-requirements
-```
-
-### Inspectable evidence
+Inspectable evidence includes:
 
 ```text
 README
-dependency files
-source tree
-Dockerfile
-deployment configs
-tests
-architecture files
-framework imports
+Python manifests/source
+JavaScript / TypeScript manifests/source
+Go manifests/source
+Java / Kotlin manifests/source
+Docker/container config
+architecture text/diagram candidates
+framework imports/dependencies
 model configuration
 documentation
 ```
 
-### Output
+Must:
+
+- point observations to concrete paths;
+- exclude fixture/test/report paths from production evidence;
+- avoid forwarding an optional GitHub token to the raw-file host;
+- avoid treating container configuration as live deployment proof;
+- avoid treating architecture filenames alone as an automatic pass.
+
+Supported Google-framework evidence includes bounded markers for:
 
 ```text
-artifact
-path
-evidence_type
-observed_value
+Google ADK
+Google GenAI SDK
+GenKit
+Antigravity SDK markers
 ```
 
-### Must
+### 8.3 Reproduction Checker
 
-- point every observation to a concrete repository artifact;
-- mark unavailable evidence as `UNVERIFIED`;
-- avoid treating filenames alone as proof when content is required.
+Purpose: perform only reproducibility checks that are safe without running untrusted
+code.
 
----
-
-## 8.3 Reproduction Checker
-
-### Purpose
-
-Test bounded reproducibility claims.
-
-### Candidate checks
+Current P0 checks:
 
 ```text
-README setup command exists
-dependency manifest exists
-build/test command exists
-basic project command can be invoked safely
+README setup/run markers
+supported dependency manifest presence
 ```
 
-### Output
-
-```text
-command
-status
-stdout_summary
-stderr_summary
-evidence
-```
-
-### Constraint
-
-The MVP must not blindly execute arbitrary untrusted code without bounded safeguards.
-
-Unsupported execution paths become:
+Current command-execution status:
 
 ```text
 MANUAL_REVIEW
 ```
 
----
+The MVP does not claim that setup commands were executed. A future command runner must
+be explicitly sandboxed before it can produce automated runtime reproduction evidence.
 
-## 8.4 Deployment Verifier
+### 8.4 Deployment Verifier
 
-### Purpose
+Purpose: verify supplied runtime evidence.
 
-Verify runtime evidence when a deployment URL is supplied.
-
-### Input
-
-```text
-deployment_url
-```
-
-### Checks
+Checks:
 
 ```text
-URL reachable
-HTTP success
-expected app response exists
-optional health endpoint
+public target validation
+bounded redirect handling
+validation of every redirect target
+final HTTP 2xx success
+bounded textual response sample when available
+Cloud Run hostname recognition (*.run.app)
 ```
 
-### Output
+A redirect is not itself treated as final success. A rule specifically requiring a
+Google Cloud-hosted backend/runtime remains unresolved until such runtime evidence is
+verified.
+
+### 8.5 Evidence Mapper
+
+Purpose: connect requirements to concrete evidence.
+
+Every automated `PASS` must point to explicit evidence. Missing evidence must remain
+`MISSING`, `UNVERIFIED`, or `MANUAL_REVIEW` rather than becoming a pass.
+
+Binary architecture files that cannot be inspected become review candidates rather than
+automatic passes.
+
+### 8.6 Claim Evidence Checker
+
+Purpose: evaluate declared submission claims against observed evidence.
+
+Direct conflict example:
 
 ```text
-reachable
-status_code
-observed_response
+Claim: Gemini 3.5
+Observed primary model: Gemini 3.7
+Status: CONTRADICTED
+Severity: CRITICAL
 ```
 
-If a deployment is required by rules but cannot be verified:
+Missing-proof example:
 
 ```text
-severity = CRITICAL
-status = MISSING / UNVERIFIED
+Claim: project uses Google ADK
+Observed evidence: none found
+Status: UNVERIFIED
+Severity: HIGH
 ```
 
----
+Must:
 
-## 8.5 Evidence Mapper
+- distinguish missing proof from direct contradiction;
+- never infer fraud or intent;
+- provide a concrete remediation action for high/critical findings.
 
-### Purpose
+### 8.7 Disposition Engine
 
-Connect requirements to observed evidence.
-
-### Output example
-
-```text
-Requirement:
-Must use Google ADK
-
-Evidence:
-pyproject.toml → google-adk dependency
-app/agent.py → Agent(...) usage
-
-Status:
-VERIFIED
-```
-
-Every automated pass must include explicit evidence.
-
----
-
-## 8.6 Contradiction Detector
-
-### Purpose
-
-Detect inconsistencies between claims and evidence.
-
-### Example
-
-```text
-Claim:
-Uses Gemini 3.5
-
-Observed:
-gemini-2.5-flash
-
-Status:
-CONTRADICTED
-
-Severity:
-CRITICAL
-```
-
-### Must
-
-- use concrete evidence;
-- distinguish `missing proof` from `direct contradiction`;
-- never infer fraud or intent.
-
----
-
-## 8.7 Risk Planner
-
-### Purpose
-
-Prioritize findings.
-
-### Severity order
+Severity order:
 
 ```text
 CRITICAL
@@ -433,50 +368,67 @@ WARNING
 PASS
 ```
 
-### Default interpretation
+Disposition rules:
 
-#### CRITICAL
-Likely submission blocker or explicit mandatory requirement failure.
+```text
+if any CRITICAL:
+    HOLD
+else if any HIGH or MANUAL_REVIEW:
+    NEEDS_REVIEW
+else:
+    READY
+```
 
-#### HIGH
-Significant readiness issue that should be fixed before submission.
+This prevents unresolved high-risk or human-verification gates from being presented as
+`READY`.
 
-#### WARNING
-Non-blocking weakness or incomplete evidence.
+### 8.8 Firestore Audit Persistence
 
-#### PASS
-Requirement supported by evidence.
+Purpose: optionally persist a structured audit record in Google Cloud Firestore.
+
+Must:
+
+- remain disabled by default;
+- fail loudly when explicitly enabled and a write fails;
+- use Application Default Credentials rather than browser-exposed secrets;
+- store report timestamp, agent version, model provenance, summary, and full report;
+- label the write as `inspector_runtime` evidence.
+
+Inspector/target boundary:
+
+- a Shipcheck Firestore write is not evidence that an unrelated inspected project uses
+  Google Cloud;
+- it may be used as target-project evidence only during configured Shipcheck
+  self-inspection where the inspected repository matches
+  `SHIPCHECK_SELF_REPOSITORY_URL`.
 
 ---
 
-## 9. Final Disposition Logic
+## 9. Final Disposition Semantics
 
 ### HOLD
 
-Return `HOLD` if one or more unresolved `CRITICAL` findings exist.
+At least one unresolved `CRITICAL` finding exists.
 
 ### NEEDS_REVIEW
 
-Return `NEEDS_REVIEW` if:
+No critical finding exists, but at least one of the following remains:
 
-- no critical automated failure exists;
-- but important mandatory requirements remain human-verifiable only.
+- a `HIGH` readiness issue;
+- a `MANUAL_REVIEW` requirement.
 
 ### READY
 
-Return `READY` only if:
+Return `READY` only when no `CRITICAL`, `HIGH`, or `MANUAL_REVIEW` gate remains within
+the inspected scope.
 
-- no unresolved critical findings exist;
-- all machine-checkable mandatory requirements are verified;
-- remaining manual-review items are explicitly surfaced.
-
-Preferred UI wording:
+Preferred interpretation:
 
 ```text
 READY WITHIN INSPECTED SCOPE
 ```
 
-Not:
+Never:
 
 ```text
 GUARANTEED VALID SUBMISSION
@@ -486,269 +438,186 @@ GUARANTEED VALID SUBMISSION
 
 ## 10. P0 Functional Requirements
 
-### FR-01 — Rules ingestion
-
-System accepts one public rules URL and extracts structured requirements.
-
-### FR-02 — Requirement typing
-
-System classifies requirements into:
-
-```text
-CHECKABLE
-MANUAL_REVIEW
-INFORMATIONAL
-```
-
-### FR-03 — Repository inspection
-
-System accepts one public GitHub repository and inspects relevant artifacts.
-
-### FR-04 — Evidence mapping
-
-Every automated pass or failure points to concrete evidence or explicitly states that evidence is missing.
-
-### FR-05 — Deployment verification
-
-When deployment evidence is relevant and a URL is supplied, system checks reachability.
-
-### FR-06 — Reproducibility inspection
-
-System performs bounded reproducibility checks where safely supported.
-
-### FR-07 — Contradiction detection
-
-System detects material mismatches between submitted claims and observed evidence.
-
-### FR-08 — Severity ranking
-
-System ranks findings as critical, high, warning, or pass.
-
-### FR-09 — Final disposition
-
-System returns:
-
-```text
-READY
-HOLD
-NEEDS_REVIEW
-```
-
-### FR-10 — Recommended action
-
-Every critical or high finding includes one concrete next action.
-
-### FR-11 — Structured result UI
-
-User can inspect:
-
-```text
-requirement
-status
-evidence
-reason
-recommended action
-```
-
-without reading raw agent traces.
-
-### FR-12 — Deterministic demo fixtures
-
-The repository includes intentionally broken fixture cases with expected findings.
+| ID | Requirement | Current implementation |
+|---|---|---|
+| FR-01 | Public rules ingestion | Implemented |
+| FR-02 | Requirement typing | Implemented |
+| FR-03 | Public GitHub inspection | Implemented |
+| FR-04 | Evidence mapping | Implemented with bounded mappings |
+| FR-05 | Deployment verification | Implemented with safe redirects |
+| FR-06 | Bounded reproducibility inspection | Implemented as static-only checks |
+| FR-07 | Claim contradiction / missing-proof detection | Implemented |
+| FR-08 | Severity ranking | Implemented |
+| FR-09 | READY / HOLD / NEEDS_REVIEW | Implemented |
+| FR-10 | Recommended action for high/critical | Implemented on current high/critical paths |
+| FR-11 | Structured result UI | Implemented |
+| FR-12 | Deterministic fixtures/tests | Implemented; acceptance coverage remains release work |
 
 ---
 
-## 11. Initial Acceptance Cases
+## 11. Acceptance Cases
 
 ### CASE-01 — Missing architecture evidence
 
-```text
-Rule:
-Architecture diagram required
-
-Repository:
-No architecture artifact found
-
 Expected:
+
+```text
 CRITICAL
 MISSING
 HOLD
 ```
 
-### CASE-02 — Required framework verified
+If an architecture-like binary candidate exists but content cannot be inspected:
 
 ```text
-Rule:
-Must use Google ADK
+HIGH
+UNVERIFIED
+NEEDS_REVIEW
+```
 
-Repository:
-Dependency and source usage found
+### CASE-02 — Required Google framework verified
 
 Expected:
+
+```text
 PASS
 VERIFIED
 ```
 
-### CASE-03 — Model claim contradiction
-
-```text
-Claim:
-Gemini 3.5
-
-Repository:
-Gemini 2.5 configuration
+### CASE-03 — Direct model claim contradiction
 
 Expected:
+
+```text
 CRITICAL
 CONTRADICTED
 HOLD
 ```
 
-### CASE-04 — Deployment unreachable
-
-```text
-Rule:
-Working cloud deployment required
-
-Deployment URL:
-unreachable
+### CASE-04 — Required deployment unavailable
 
 Expected:
+
+```text
 CRITICAL
 UNVERIFIED
 HOLD
 ```
 
-### CASE-05 — Subjective judging rule
-
-```text
-Rule:
-Project should demonstrate strong innovation
+### CASE-05 — Subjective/human-only rule
 
 Expected:
+
+```text
+WARNING
 MANUAL_REVIEW
-No automated pass/fail claim
+NEEDS_REVIEW
 ```
 
-### CASE-06 — Fully compliant fixture
-
-```text
-All checkable requirements verified
-No contradiction
-No blocker
+### CASE-06 — Fully clear inspected scope
 
 Expected:
-READY WITHIN INSPECTED SCOPE
+
+```text
+READY
 ```
 
 ---
 
-## 12. P1 — Only If P0 Is Stable
+## 12. P1 / Deferred Scope
+
+Deferred unless it directly strengthens submission readiness:
 
 ```text
 GitHub Issue creation
 SUBMISSION_EVIDENCE.md generation
 deadline-aware remediation ordering
-export report
+sandboxed command execution
+private repository OAuth
+persistent user/project history
 ```
 
-None of these may block P0 release.
+Markdown report export is already implemented and is no longer a deferred P1 item.
 
 ---
 
 ## 13. Non-Goals
 
-Do not build for v0.1:
+The current MVP does not become:
 
 ```text
-multi-agent orchestration
-authentication
-database
-project history
-private repo OAuth
-Slack
-email
-browser extension
-vector database
-analytics
+multi-agent orchestration platform
+generic coding assistant
+project-management suite
 security scanner
-code-quality scoring
-generic CI/CD
-automatic submission
-judge prediction
+code-quality score
+full CI/CD system
+automatic hackathon submission system
+judge prediction system
+legal/eligibility guarantee
 ```
 
 ---
 
 ## 14. Technology Lock
 
-### Required hackathon stack
+Required hackathon stack:
 
 ```text
 Gemini 3.5+
-Google ADK
-Google Cloud
+Google Agent Framework
+Google Cloud infrastructure
 ```
 
-### Proposed implementation
+Shipcheck implementation:
 
 ```text
 Python 3.12
 Google ADK
-Gemini API / Google GenAI
+Google Gen AI SDK
+Gemini 3.7 primary with explicit fallback chain
 FastAPI
-Cloud Run
 HTML / CSS / JavaScript
+Google Cloud Firestore audit persistence
+Cloud Run-compatible Dockerfile
 uv
 pytest
+Ruff
 GitHub
 ```
 
-Exact Gemini 3.5 model identifier must be confirmed against currently available hackathon-supported models before deployment.
+A Cloud Run-compatible Dockerfile is not represented as a live Cloud Run deployment.
 
 ---
 
 ## 15. UX Direction
 
-The interface should behave like an industrial inspection system rather than a chatbot.
+The interface behaves like an industrial shipping/preflight inspection system, not a
+chatbot.
 
 Primary states:
 
 ```text
-INSPECTION READY
+AWAITING MANIFEST
 INSPECTING
 HOLD
 NEEDS REVIEW
-CLEARED
-```
-
-Primary result visual:
-
-```text
-FINAL DISPOSITION
-
-HOLD
-NOT CLEARED TO SHIP
-```
-
-or:
-
-```text
-FINAL DISPOSITION
-
 READY
-CLEARED WITHIN INSPECTED SCOPE
 ```
 
 Visual language:
 
 ```text
-industrial inspection plate
+shipping-container inspection plate
 technical typography
-evidence table
+evidence register
 minimal status colors
 limited rounded UI
+prominent final disposition
+visible Markdown report export
 ```
+
+The current UI identity is considered frozen unless a functional defect is found.
 
 ---
 
@@ -756,64 +625,81 @@ limited rounded UI
 
 ### NFR-01 — Traceability
 
-Every automated verdict must point to evidence.
+Every automated pass/failure must point to evidence or explicitly state that evidence is
+missing.
 
 ### NFR-02 — Safe failure
 
-Tool failure must not silently become a pass.
+Tool/provider/persistence failure must not silently become a pass.
 
 ### NFR-03 — Bounded execution
 
-Repository execution must be constrained.
+Untrusted repository code is not executed in the current MVP.
 
 ### NFR-04 — Reproducibility
 
-Repository must document local setup.
+README local setup must be complete enough to install dependencies, configure the Gemini
+key, and start the application.
 
 ### NFR-05 — Demo speed
 
-Reference inspection should complete within a practical interactive demo window.
+Reference inspection should complete within a practical interactive demo window; rule
+content caching should reduce repeated Gemini calls without hiding source changes.
 
-### NFR-06 — Cloud evidence
+### NFR-06 — Cloud evidence provenance
 
-The production demo must visibly run through Google Cloud infrastructure required by the hackathon.
+Inspector cloud infrastructure and target-project cloud evidence must remain distinct.
 
-### NFR-07 — Structured agent state
+### NFR-07 — Structured state
 
-Requirements, evidence, findings, and final disposition must use structured objects rather than free-form prose only.
+Requirements, findings, evidence, summary, disposition, model provenance, and audit
+metadata use structured objects rather than free-form prose alone.
+
+### NFR-08 — Container secret hygiene
+
+Local `.env` files and development caches must not enter Docker build context.
 
 ---
 
 ## 17. Release Gate
 
-P0 is ready when:
-
 ```text
-[ ] Rules page can be parsed
-[ ] Requirements are typed
-[ ] Public repo can be inspected
-[ ] Evidence is traceable
-[ ] Missing evidence is detected
-[ ] One contradiction case is detected
-[ ] Deployment verification works
-[ ] Severity ranking works
-[ ] HOLD disposition works
-[ ] READY fixture works
-[ ] Manual-review requirement does not receive fake certainty
-[ ] Cloud Run deployment works
-[ ] README is reproducible
-[ ] Core tests pass
+[x] Rules page can be fetched and parsed
+[x] Extracted quotes are validated against fetched text
+[x] Requirements are typed
+[x] Public GitHub repository can be inspected
+[x] Evidence is traceable
+[x] Fixture/test evidence is excluded from production evidence
+[x] Architecture filename alone cannot auto-pass
+[x] Missing proof is distinguished from direct contradiction
+[x] Bounded static reproduction checker exists
+[x] Deployment redirect handling is bounded and revalidated
+[x] Severity ranking works
+[x] HOLD disposition works
+[x] NEEDS_REVIEW disposition works
+[x] READY disposition is gated
+[x] Firestore evidence scope is explicit
+[x] Inspector Firestore evidence cannot satisfy unrelated target projects
+[x] README local setup documents GEMINI_API_KEY
+[x] Markdown report export is documented
+[x] .dockerignore excludes local secrets
+[x] Runtime version has a single source of truth
+[ ] Live Google Cloud-hosted application/backend evidence is available if the final
+    competition interpretation specifically requires it
+[ ] Full test suite and Ruff pass after the final hardening patchset
 ```
 
 ---
 
 ## 18. Scope Lock
 
-Shipcheck v0.1 is:
+Shipcheck is:
 
-> **One agent performing one pre-submission inspection over one ruleset, one repository, and an optional deployment, producing one evidence-backed disposition.**
+> **One ADK-powered pre-submission inspection workflow over one ruleset, one public
+> repository, and an optional deployment, producing one evidence-backed disposition.**
 
-Anything that does not strengthen that workflow is deferred.
+The agent interprets rules. Deterministic services gather and evaluate bounded evidence.
+Anything that does not strengthen that workflow remains deferred.
 
 ---
 
@@ -823,18 +709,21 @@ Anything that does not strengthen that workflow is deferred.
 |---|---|
 | Core user flow is explicit? | PASS |
 | Inputs and outputs are locked? | PASS |
-| One-agent architecture is locked? | PASS |
+| Actual runtime architecture is documented? | PASS |
 | P0 tools have bounded contracts? | PASS |
 | Evidence requirement is enforced? | PASS |
 | Claim boundary is explicit? | PASS |
-| Acceptance cases exist? | PASS |
+| Inspector/target cloud boundary is explicit? | PASS |
+| Model provenance is explicit? | PASS |
 | Non-goals are strict? | PASS |
-| Exact Google model ID confirmed? | PENDING |
-| Repo scaffold created? | PENDING |
-| Production vertical slice works? | PENDING |
+| Production vertical slice works locally? | PASS |
+| Final cloud-hosted runtime proof resolved? | PENDING EXTERNAL DEPLOYMENT DECISION |
+| Final post-hardening test run complete? | PENDING |
 
 ### Gate Decision
 
-**PASS TO REPO SCAFFOLD + VERTICAL SLICE**
+**HOLD FOR FINAL VERIFICATION ONLY.**
 
-No additional product features should be added until the first end-to-end inspection fixture passes.
+Do not add product features. Complete the post-hardening test run, resolve any regression,
+and separately close the competition-specific live Google Cloud runtime proof question
+before submission freeze.
