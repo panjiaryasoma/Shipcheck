@@ -12,6 +12,7 @@ import httpx
 from bs4 import BeautifulSoup
 
 from app.core.config import settings
+from app.core.version import SHIPCHECK_USER_AGENT
 
 MAX_RESPONSE_BYTES = 750_000
 MAX_CLEAN_TEXT_CHARS = 80_000
@@ -139,7 +140,7 @@ async def fetch_rules_page(url: str) -> dict[str, str | int | None]:
     )
 
     headers = {
-        "User-Agent": "Shipcheck/0.2 (+submission preflight inspector)",
+        "User-Agent": f"{SHIPCHECK_USER_AGENT} (+submission preflight inspector)",
         "Accept": "text/html,text/plain,application/xhtml+xml;q=0.9,*/*;q=0.1",
     }
 
