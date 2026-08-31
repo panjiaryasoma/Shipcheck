@@ -19,6 +19,22 @@ The project was built for **All Things Agentic Hackathon · Taskmaster**.
 
 ![Shipcheck thumbnail](thumbnail.png)
 
+## Hackathon requirement mapping
+
+| Requirement | Shipcheck implementation |
+|---|---|
+| Gemini 3.5 or newer | Gemini 3.7 Flash with bounded Gemini 3.6 Flash and Gemini 3.5 Flash fallbacks |
+| Google agent framework | Google Agent Development Kit (ADK) |
+| Google Cloud service | Google Cloud Firestore for inspection audit persistence |
+
+The canonical Shipcheck self-inspection recorded the Gemini model used, Google ADK implementation evidence, and a successful Google Cloud Firestore audit operation.
+
+## Demo
+
+**Demo video:** https://youtu.be/aeHwq5Nn_Dw
+
+The demo shows the Shipcheck workflow, requirement-level Evidence Register, canonical self-inspection evidence, and the corresponding Google Cloud Firestore audit record.
+
 ## Why preflight?
 
 A project can work perfectly and still fail at submission.
@@ -95,7 +111,7 @@ Enter a public rules URL and repository URL, optionally add a deployment URL and
 
 Interactive API documentation is available at `http://127.0.0.1:8000/docs`.
 
-> Firestore is optional for the normal local path. Enable it only when inspection audit persistence is required.
+> Shipcheck uses Google Cloud Firestore for inspection audit persistence. Firestore is part of the submitted system and was exercised in the recorded canonical self-inspection. Reviewers do not need Firestore credentials for the basic local inspection path.
 
 ## Core Inspection Flow
 
@@ -200,7 +216,7 @@ A reachable deployment or other scoped live operation must be observed before Sh
 
 ## Firestore audit persistence
 
-Shipcheck can optionally persist inspection reports to Google Cloud Firestore.
+Shipcheck uses Google Cloud Firestore for optional-at-runtime inspection audit persistence. Firestore is part of the submitted system and was exercised in the recorded canonical self-inspection; it is optional only for reviewers running the basic local inspection path.
 
 Authenticate Application Default Credentials:
 
@@ -244,7 +260,7 @@ This boundary prevents the inspector's own infrastructure from contaminating evi
 | Rules retrieval | httpx + Beautiful Soup |
 | Repository inspection | GitHub REST + bounded raw-file retrieval |
 | Evidence and disposition | Deterministic Python services |
-| Persistence | Google Cloud Firestore, optional |
+| Persistence | Google Cloud Firestore (submitted system; optional for basic local review) |
 | Frontend | Server-rendered HTML, CSS, vanilla JavaScript |
 | Testing | pytest |
 | Linting | Ruff |
@@ -299,9 +315,13 @@ For the complete repository ownership map, see [`docs/05_arch/SHIPCHECK_REPO_STR
 
 ## Submission package
 
-Working All Things Agentic Hackathon materials live under [`submission/`](submission/README.md).
+All Things Agentic Hackathon submission materials live under [`submission/`](submission/README.md).
 
-The package includes a paste-ready Devpost field sheet, elevator pitch, full project story, testing instructions, link tracker, four-minute demo plan, screenshot plan, and official-requirements checklist. Missing external artifacts such as the public video URL, hosted-project URL, final Devpost URL, and optional release tag remain explicit `TODO`s until they actually exist.
+The package includes the Devpost field sheet, project story, testing instructions, demo-video plan, screenshot set, and recorded verification artifacts.
+
+**Demo video:** https://youtu.be/aeHwq5Nn_Dw
+
+A hosted-project URL is intentionally omitted because no public hosted application is currently provided. The public repository contains complete local spin-up instructions.
 
 No final freeze is implied by the submission package.
 
@@ -364,7 +384,7 @@ Shipcheck is a hackathon prototype and should not be treated as a legal, eligibi
 - Arbitrary project commands are not executed.
 - Subjective judging criteria, entrant identity, age, geography, deadlines, video quality, and submission-form state can require human review.
 - A reachable deployment does not prove every backend component or claim.
-- Firestore persistence is optional and requires valid Google Cloud credentials.
+- Firestore persistence requires valid Google Cloud credentials when a reviewer chooses to exercise the audit-persistence path.
 - `READY` is not a guarantee that a competition organizer or judge will accept the project.
 
 ## Documentation
@@ -386,7 +406,7 @@ Key project records include:
 - [`docs/05_arch/Flowchart.png`](docs/05_arch/Flowchart.png)
 - [`docs/05_arch/Architecture.png`](docs/05_arch/Architecture.png)
 
-Recorded verification artifacts belong under [`reports/`](reports/). Working hackathon submission materials belong under [`submission/`](submission/README.md).
+Recorded verification artifacts belong under [`reports/`](reports/). Hackathon submission materials belong under [`submission/`](submission/README.md).
 
 ---
 
