@@ -42,6 +42,20 @@
 }
 
 @media (min-width: 680px) {
+  .disposition-row {
+    grid-template-columns: minmax(0, 1fr) minmax(220px, 250px);
+  }
+
+  .disposition-row > :first-child {
+    min-width: 0;
+  }
+
+  .disposition {
+    max-width: 100%;
+    font-size: clamp(2.8rem, 5vw, 4.6rem);
+    line-height: 0.9;
+  }
+
   .report-decision-meta {
     min-width: 220px;
     justify-items: stretch;
