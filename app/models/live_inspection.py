@@ -15,6 +15,8 @@ class InspectionSummary(BaseModel):
 
 class LiveInspectionReport(BaseModel):
     inspection_id: str
+    timestamp: str
+    agent_version: str
     rules_source: str
     repository_url: str
     deployment_url: str | None = None
