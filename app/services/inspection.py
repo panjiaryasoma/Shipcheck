@@ -3,11 +3,13 @@
 from __future__ import annotations
 
 import asyncio
+from datetime import UTC, datetime
 from pathlib import Path
 from urllib.parse import urlparse
 from uuid import uuid4
 
 from app.core.config import settings
+from app.core.version import SHIPCHECK_VERSION
 from app.models.cloud_infrastructure import GoogleCloudObservation
 from app.models.live_inspection import InspectionSummary, LiveInspectionReport
 from app.models.repository_inspection import RepositoryInspectionOutput
@@ -133,6 +135,8 @@ async def inspect_live_submission(
 
     report = LiveInspectionReport(
         inspection_id=f"live-{uuid4().hex[:10]}",
+        timestamp=datetime.now(UTC).isoformat().replace("+00:00", "Z"),
+        agent_version=SHIPCHECK_VERSION,
         rules_source=rules.source_url,
         repository_url=repository.repository_url,
         deployment_url=deployment.url,
