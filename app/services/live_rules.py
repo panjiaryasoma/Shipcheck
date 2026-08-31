@@ -17,14 +17,15 @@ from google.genai import types
 from app.agent.root_agent import APP_NAME, build_rules_agent
 from app.core.config import settings
 from app.models.rules_extraction import RulesExtractionOutput
+from app.tools.live_rules import fetch_rules_page
 
 USER_ID = "shipcheck-api"
-_CACHE_SCHEMA_VERSION = "v1"
+_CACHE_SCHEMA_VERSION = "v2"
 _CACHE_ROOT = Path(".shipcheck_cache") / "rules"
 
 
 class AgentExtractionError(RuntimeError):
-    """Raised when all configured rules-extraction model attempts fail."""
+    """Raised when rules extraction cannot complete safely."""
 
 
 def _model_chain() -> list[str]:
@@ -64,17 +65,26 @@ def _is_retryable_model_error(exc: BaseException) -> bool:
     return False
 
 
-def _cache_path(rules_url: str) -> Path:
-    cache_key = hashlib.sha256(f"{_CACHE_SCHEMA_VERSION}:{rules_url}".encode()).hexdigest()
+def _source_digest(source_text: str) -> str:
+    return hashlib.sha256(source_text.encode()).hexdigest()
+
+
+def _cache_path(rules_url: str, source_digest: str) -> Path:
+    cache_key = hashlib.sha256(
+        f"{_CACHE_SCHEMA_VERSION}:{rules_url}:{source_digest}".encode()
+    ).hexdigest()
     return _CACHE_ROOT / f"{cache_key}.json"
 
 
-def _load_cached_result(rules_url: str) -> RulesExtractionOutput | None:
+def _load_cached_result(
+    rules_url: str,
+    source_digest: str,
+) -> RulesExtractionOutput | None:
     ttl_seconds = max(0, settings.shipcheck_rules_cache_ttl_seconds)
     if ttl_seconds == 0:
         return None
 
-    path = _cache_path(rules_url)
+    path = _cache_path(rules_url, source_digest)
     if not path.exists():
         return None
 
@@ -90,7 +100,7 @@ def _load_cached_result(rules_url: str) -> RulesExtractionOutput | None:
             update={
                 "notes": [
                     *result.notes,
-                    "Rules extraction loaded from local cache.",
+                    "Rules extraction loaded from content-addressed local cache.",
                 ]
             }
         )
@@ -99,10 +109,14 @@ def _load_cached_result(rules_url: str) -> RulesExtractionOutput | None:
         return None
 
 
-def _save_cached_result(rules_url: str, result: RulesExtractionOutput) -> None:
+def _save_cached_result(
+    rules_url: str,
+    source_digest: str,
+    result: RulesExtractionOutput,
+) -> None:
     try:
         _CACHE_ROOT.mkdir(parents=True, exist_ok=True)
-        path = _cache_path(rules_url)
+        path = _cache_path(rules_url, source_digest)
         temp_path = path.with_suffix(".tmp")
         temp_path.write_text(
             result.model_dump_json(indent=2),
@@ -112,6 +126,22 @@ def _save_cached_result(rules_url: str, result: RulesExtractionOutput) -> None:
     except OSError:
         # Caching is an optimization. Read-only filesystems must not break inspection.
         return
+
+
+def _normalize_source_text(value: str) -> str:
+    return " ".join(value.split()).casefold()
+
+
+def _validate_source_quotes(result: RulesExtractionOutput, source_text: str) -> None:
+    normalized_source = _normalize_source_text(source_text)
+
+    for requirement in result.requirements:
+        normalized_quote = _normalize_source_text(requirement.source_quote)
+        if not normalized_quote or normalized_quote not in normalized_source:
+            raise AgentExtractionError(
+                "ADK output contained a source_quote that could not be found in the "
+                f"fetched rules text ({requirement.requirement_id})."
+            )
 
 
 async def _run_agent_once(*, rules_url: str, model_name: str) -> RulesExtractionOutput:
@@ -155,9 +185,7 @@ async def _run_agent_once(*, rules_url: str, model_name: str) -> RulesExtraction
             continue
 
         text_parts = [
-            part.text
-            for part in event.content.parts
-            if getattr(part, "text", None)
+            part.text for part in event.content.parts if getattr(part, "text", None)
         ]
         if text_parts:
             final_text = "".join(text_parts)
@@ -177,9 +205,18 @@ async def _run_agent_once(*, rules_url: str, model_name: str) -> RulesExtraction
 
 
 async def extract_requirements_with_adk(rules_url: str) -> RulesExtractionOutput:
-    cached = _load_cached_result(rules_url)
+    source_snapshot = await fetch_rules_page(rules_url)
+    source_text = str(source_snapshot.get("text") or "")
+    digest = _source_digest(source_text)
+
+    cached = _load_cached_result(rules_url, digest)
     if cached is not None:
         return cached
+
+    if not settings.gemini_api_key:
+        raise AgentExtractionError(
+            "GEMINI_API_KEY is required for a rules page that is not already cached."
+        )
 
     models = _model_chain()
     failures: list[str] = []
@@ -190,13 +227,16 @@ async def extract_requirements_with_adk(rules_url: str) -> RulesExtractionOutput
                 rules_url=rules_url,
                 model_name=model_name,
             )
+            _validate_source_quotes(result, source_text)
             result = result.model_copy(
                 update={
+                    "source_url": str(source_snapshot.get("source_url") or rules_url),
+                    "page_title": result.page_title or source_snapshot.get("page_title"),
                     "model_used": model_name,
                     "fallback_used": index > 0,
                 }
             )
-            _save_cached_result(rules_url, result)
+            _save_cached_result(rules_url, digest, result)
             return result
         except Exception as exc:
             if not _is_retryable_model_error(exc):
