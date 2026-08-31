@@ -11,7 +11,9 @@ reports/  -> observed outputs and verification evidence
 
 ## Versioned reports
 
-Runtime v0.6.x verification artifacts belong under [`v06/`](v06/).
+Shipcheck's first formal verification set belongs under [`v01/`](v01/).
+
+`v01` tracks the **project/report-set version**, not the internal package/runtime version declared in `pyproject.toml`. The package may change during implementation and hardening without implying that multiple formal Shipcheck releases already exist.
 
 Expected artifact types may include:
 
