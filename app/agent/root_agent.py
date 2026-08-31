@@ -62,7 +62,9 @@ def build_rules_agent(model_name: str) -> Agent:
         name=AGENT_NAME,
         model=Gemini(
             model=model_name,
-            retry_options=types.HttpRetryOptions(attempts=4),
+            # Shipcheck owns cross-model failover. Keeping provider retries to one
+            # prevents a single model attempt from consuming the whole request budget.
+            retry_options=types.HttpRetryOptions(attempts=1),
         ),
         instruction=_AGENT_INSTRUCTION,
         tools=[fetch_rules_page],
