@@ -155,3 +155,11 @@
     margin-bottom: 7px;
   }
 }
+
+@media (min-width: 1040px) {
+  .input-panel {
+    position: sticky;
+    top: 84px;
+    height: max-content;
+  }
+}
