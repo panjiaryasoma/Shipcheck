@@ -266,53 +266,31 @@ The suite contains deterministic unit, integration, and acceptance coverage for 
 
 ```text
 Shipcheck/
-├── app/
-│   ├── agent/
-│   │   └── root_agent.py          # Google ADK rules agent
-│   ├── core/
-│   │   ├── config.py              # environment-backed settings
-│   │   └── version.py             # runtime version source of truth
-│   ├── models/                    # structured inspection contracts
-│   ├── services/
-│   │   ├── inspection.py          # end-to-end orchestrator
-│   │   ├── live_repository.py
-│   │   └── live_rules.py
-│   ├── storage/
-│   │   └── firestore.py           # optional audit persistence
-│   ├── tools/
-│   │   ├── live_rules.py          # bounded public rules fetcher
-│   │   ├── github_repo.py         # bounded GitHub inspection
-│   │   ├── reproduction.py        # static reproduction checks
-│   │   ├── deployment.py          # deployment verification
-│   │   ├── live_evidence.py       # requirement/evidence mapping
-│   │   ├── contradiction.py       # claim + contradiction checks
-│   │   └── risk.py                # final disposition logic
-│   ├── web/
-│   │   ├── templates/
-│   │   └── static/
-│   │       ├── asset/
-│   │       ├── css/
-│   │       └── js/
-│   └── main.py
-├── fixtures/                      # deterministic rules/repository fixtures
+├── app/                            # runtime application
+├── docs/
+│   ├── README.md                   # documentation index
+│   ├── 01_problem/                 # problem definition and scope
+│   ├── 02_product/                 # product requirements and runtime contract
+│   ├── 03_evaluation/              # evidence + decision semantics
+│   ├── 04_testing/                 # acceptance + release verification
+│   └── 05_arch/                    # architecture docs and diagrams
+├── fixtures/                       # deterministic rules/repository fixtures
+├── reports/
+│   ├── README.md                   # report provenance contract
+│   └── v06/                        # recorded runtime-v0.6 verification artifacts
+├── scripts/                        # live smoke utilities
+├── submission/                     # submission-specific materials
 ├── tests/
 │   ├── unit/
 │   ├── integration/
 │   └── acceptance/
-├── docs/
-│   ├── 05_arch/                   # E2E, flowchart, architecture diagrams
-│   ├── ARCHITECTURE.md
-│   ├── PROBLEM_BRIEF.md
-│   ├── REPO_STRUCTURE.md
-│   └── SIMPLE_PRD.md
-├── reports/
-├── scripts/
-├── submission/
 ├── Dockerfile
 ├── pyproject.toml
 ├── README.md
 └── uv.lock
 ```
+
+For the complete repository ownership map, see [`docs/05_arch/SHIPCHECK_REPO_STRUCTURE_v0.1.md`](docs/05_arch/SHIPCHECK_REPO_STRUCTURE_v0.1.md).
 
 ## API
 
@@ -378,15 +356,24 @@ Shipcheck is a hackathon prototype and should not be treated as a legal, eligibi
 
 ## Documentation
 
+Start with the documentation index: [`docs/README.md`](docs/README.md).
+
 Key project records include:
 
-- [`docs/PROBLEM_BRIEF.md`](docs/PROBLEM_BRIEF.md)
-- [`docs/SIMPLE_PRD.md`](docs/SIMPLE_PRD.md)
-- [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)
-- [`docs/REPO_STRUCTURE.md`](docs/REPO_STRUCTURE.md)
+- [`docs/01_problem/SHIPCHECK_PROBLEM_BRIEF_v0.1.md`](docs/01_problem/SHIPCHECK_PROBLEM_BRIEF_v0.1.md)
+- [`docs/02_product/SHIPCHECK_SIMPLE_PRD_v0.2.md`](docs/02_product/SHIPCHECK_SIMPLE_PRD_v0.2.md)
+- [`docs/03_evaluation/EVIDENCE_DECISION_CONTRACT.md`](docs/03_evaluation/EVIDENCE_DECISION_CONTRACT.md)
+- [`docs/03_evaluation/INSPECTION_SCOPE.md`](docs/03_evaluation/INSPECTION_SCOPE.md)
+- [`docs/03_evaluation/CLOUD_EVIDENCE_BOUNDARY.md`](docs/03_evaluation/CLOUD_EVIDENCE_BOUNDARY.md)
+- [`docs/04_testing/ACCEPTANCE_TESTS.md`](docs/04_testing/ACCEPTANCE_TESTS.md)
+- [`docs/04_testing/RELEASE_VERIFICATION.md`](docs/04_testing/RELEASE_VERIFICATION.md)
+- [`docs/05_arch/SHIPCHECK_ARCHITECTURE_v0.1.md`](docs/05_arch/SHIPCHECK_ARCHITECTURE_v0.1.md)
+- [`docs/05_arch/SHIPCHECK_REPO_STRUCTURE_v0.1.md`](docs/05_arch/SHIPCHECK_REPO_STRUCTURE_v0.1.md)
 - [`docs/05_arch/E2E_Diagram.png`](docs/05_arch/E2E_Diagram.png)
 - [`docs/05_arch/Flowchart.png`](docs/05_arch/Flowchart.png)
 - [`docs/05_arch/Architecture.png`](docs/05_arch/Architecture.png)
+
+Recorded verification artifacts belong under [`reports/`](reports/).
 
 ---
 
