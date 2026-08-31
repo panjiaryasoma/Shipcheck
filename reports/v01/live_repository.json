@@ -1,0 +1,171 @@
+﻿{
+  "repository_url": "https://github.com/panjiaryasoma/Shipcheck",
+  "owner": "panjiaryasoma",
+  "repository": "Shipcheck",
+  "default_branch": "main",
+  "public": true,
+  "artifacts": [
+    {
+      "evidence_type": "repository_visibility",
+      "path": "repository",
+      "observed_value": "public repository"
+    },
+    {
+      "evidence_type": "architecture_candidate",
+      "path": "docs/05_arch/Architecture.png",
+      "observed_value": "Architecture-like image filename found; binary content was not inspected."
+    },
+    {
+      "evidence_type": "architecture_artifact",
+      "path": "docs/05_arch/SHIPCHECK_ARCHITECTURE_v0.1.md",
+      "observed_value": "Architecture content contains multiple system/flow signals."
+    },
+    {
+      "evidence_type": "readme_setup",
+      "path": "README.md",
+      "observed_value": "uv sync, uv run"
+    },
+    {
+      "evidence_type": "dependency_manifest",
+      "path": "pyproject.toml",
+      "observed_value": "Dependency manifest present"
+    },
+    {
+      "evidence_type": "google_adk",
+      "path": "app/agent/root_agent.py",
+      "observed_value": "from google.adk, google-adk, import google.adk"
+    },
+    {
+      "evidence_type": "google_agent_framework",
+      "path": "app/agent/root_agent.py",
+      "observed_value": "google_adk: from google.adk, google-adk, import google.adk"
+    },
+    {
+      "evidence_type": "google_genai_sdk",
+      "path": "app/agent/root_agent.py",
+      "observed_value": "google.genai, google-genai, from google import genai, @google/genai"
+    },
+    {
+      "evidence_type": "google_agent_framework",
+      "path": "app/agent/root_agent.py",
+      "observed_value": "google_genai_sdk: google.genai, google-genai, from google import genai, @google/genai"
+    },
+    {
+      "evidence_type": "google_genkit",
+      "path": "app/tools/github_repo.py",
+      "observed_value": "@genkit-ai/, from genkit, import genkit, \"genkit\""
+    },
+    {
+      "evidence_type": "google_agent_framework",
+      "path": "app/tools/github_repo.py",
+      "observed_value": "google_genkit: @genkit-ai/, from genkit, import genkit, \"genkit\""
+    },
+    {
+      "evidence_type": "google_antigravity",
+      "path": "app/tools/github_repo.py",
+      "observed_value": "google.antigravity, @google/antigravity, antigravity-sdk"
+    },
+    {
+      "evidence_type": "google_agent_framework",
+      "path": "app/tools/github_repo.py",
+      "observed_value": "google_antigravity: google.antigravity, @google/antigravity, antigravity-sdk"
+    },
+    {
+      "evidence_type": "gemini_primary_model_config",
+      "path": ".env.example",
+      "observed_value": "gemini-3.7-flash"
+    },
+    {
+      "evidence_type": "cloud_run_config",
+      "path": "README.md",
+      "observed_value": "gcloud run deploy, .run.app, cloud run service, cloud run deployment"
+    },
+    {
+      "evidence_type": "container_build",
+      "path": "Dockerfile",
+      "observed_value": "Dockerfile present"
+    },
+    {
+      "evidence_type": "bounded_reproduction",
+      "path": "README.md",
+      "observed_value": "README setup markers and a dependency manifest were verified; untrusted commands were not executed."
+    }
+  ],
+  "inspected_files": [
+    ".env.example",
+    "Dockerfile",
+    "README.md",
+    "app/__init__.py",
+    "app/agent/__init__.py",
+    "app/agent/root_agent.py",
+    "app/core/__init__.py",
+    "app/core/config.py",
+    "app/core/version.py",
+    "app/main.py",
+    "app/models/__init__.py",
+    "app/models/cloud_infrastructure.py",
+    "app/models/live_inspection.py",
+    "app/models/repository_inspection.py",
+    "app/models/rules_extraction.py",
+    "app/models/schemas.py",
+    "app/services/__init__.py",
+    "app/services/inspection.py",
+    "app/services/live_repository.py",
+    "app/services/live_rules.py",
+    "app/storage/__init__.py",
+    "app/storage/firestore.py",
+    "app/tools/__init__.py",
+    "app/tools/contradiction.py",
+    "app/tools/deployment.py",
+    "app/tools/evidence.py",
+    "app/tools/github_repo.py",
+    "app/tools/live_evidence.py",
+    "app/tools/live_rules.py",
+    "app/tools/repository.py",
+    "app/tools/reproduction.py",
+    "app/tools/risk.py",
+    "app/tools/rules.py",
+    "app/web/__init__.py",
+    "app/web/static/js/app.js",
+    "docs/05_arch/SHIPCHECK_ARCHITECTURE_v0.1.md",
+    "docs/README.md",
+    "fixtures/repos/broken/README.md",
+    "fixtures/repos/broken/pyproject.toml",
+    "fixtures/repos/compliant/README.md",
+    "fixtures/repos/compliant/pyproject.toml",
+    "pyproject.toml",
+    "reports/README.md",
+    "reports/v01/README.md",
+    "scripts/smoke_firestore.py",
+    "scripts/smoke_live_inspection.py",
+    "scripts/smoke_live_repository.py",
+    "scripts/smoke_live_rules.py",
+    "submission/README.md",
+    "submission/screenshots/README.md",
+    "tests/acceptance/README.md",
+    "tests/acceptance/test_case_01_missing_architecture.py",
+    "tests/acceptance/test_case_06_compliant_fixture.py",
+    "tests/integration/test_fixture_api.py",
+    "tests/unit/test_contradiction.py",
+    "tests/unit/test_firestore_persistence.py",
+    "tests/unit/test_github_evidence_hardening.py",
+    "tests/unit/test_github_repo.py",
+    "tests/unit/test_health.py",
+    "tests/unit/test_inspection_scope.py",
+    "tests/unit/test_live_evidence.py",
+    "tests/unit/test_live_repository_service.py",
+    "tests/unit/test_live_rules_safety.py",
+    "uv.lock"
+  ],
+  "notes": [
+    "Repository tree contained 114 bounded file entries.",
+    "Inspected 64 selected text files.",
+    "Fixture/test paths are excluded from production evidence.",
+    "Architecture filenames alone do not receive an automatic pass.",
+    "Container configuration is not treated as proof of live Cloud Run deployment.",
+    "GitHub REST is used only for metadata/tree; file bodies use the public raw host.",
+    "Reproduction check documented_setup: VERIFIED; README contains bounded setup/run markers. Evidence: README.md.",
+    "Reproduction check dependency_manifest: VERIFIED; At least one dependency manifest is present. Evidence: pyproject.toml.",
+    "Reproduction check command_execution: MANUAL_REVIEW; Untrusted repository commands were not executed; runtime reproduction remains manual unless a future sandboxed checker is explicitly enabled. Evidence: no executable evidence."
+  ]
+}
