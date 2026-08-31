@@ -31,6 +31,10 @@ class AgentExtractionError(RuntimeError):
     """Raised when rules extraction cannot complete safely."""
 
 
+class SourceGroundingError(AgentExtractionError):
+    """Raised when model-provided evidence cannot be grounded in fetched rules."""
+
+
 def _model_chain() -> list[str]:
     candidates = [settings.shipcheck_model]
     candidates.extend(
@@ -197,7 +201,7 @@ def _quote_is_grounded(source_text: str, source_quote: str) -> bool:
 def _validate_source_quotes(result: RulesExtractionOutput, source_text: str) -> None:
     for requirement in result.requirements:
         if not _quote_is_grounded(source_text, requirement.source_quote):
-            raise AgentExtractionError(
+            raise SourceGroundingError(
                 "ADK output contained a source_quote that could not be grounded in the "
                 f"fetched rules text ({requirement.requirement_id})."
             )
@@ -301,6 +305,15 @@ async def extract_requirements_with_adk(rules_url: str) -> RulesExtractionOutput
             )
             _save_cached_result(rules_url, digest, result)
             return result
+        except SourceGroundingError as exc:
+            failures.append(f"{model_name}: source-grounding validation failed")
+            if index < len(models) - 1:
+                continue
+
+            raise AgentExtractionError(
+                "All configured Gemini models failed rules extraction. Attempts: "
+                f"{', '.join(failures)}"
+            ) from exc
         except Exception as exc:
             if not _is_retryable_model_error(exc):
                 raise
@@ -315,8 +328,8 @@ async def extract_requirements_with_adk(rules_url: str) -> RulesExtractionOutput
                 continue
 
             raise AgentExtractionError(
-                "All configured Gemini models timed out, exhausted quota, or were "
-                f"temporarily unavailable. Attempts: {', '.join(failures)}"
+                "All configured Gemini models failed rules extraction. Attempts: "
+                f"{', '.join(failures)}"
             ) from exc
 
     raise AgentExtractionError("No Gemini model was configured.")
