@@ -10,6 +10,69 @@ and returns a final disposition: `READY`, `HOLD`, or `NEEDS_REVIEW`.
 Shipcheck could inspect. It is not a guarantee of eligibility, judge acceptance, or
 competition success.
 
+## Quick start
+
+### 1. Clone the repository
+
+```powershell
+git clone https://github.com/panjiaryasoma/Shipcheck.git
+cd Shipcheck
+```
+
+### 2. Install dependencies
+
+Shipcheck uses Python 3.12 and `uv`.
+
+```powershell
+uv sync
+```
+
+### 3. Create local configuration
+
+```powershell
+Copy-Item .env.example .env
+```
+
+Open `.env` and add a Gemini API key:
+
+```dotenv
+GEMINI_API_KEY=YOUR_GEMINI_API_KEY
+```
+
+The default inspector model and fallback chain are already defined in `.env.example`,
+so no additional model configuration is required for the normal local path.
+
+### 4. Start Shipcheck
+
+```powershell
+uv run uvicorn app.main:app --reload
+```
+
+Open:
+
+```text
+http://127.0.0.1:8000/
+```
+
+Then provide:
+
+1. a public competition rules URL;
+2. a public GitHub repository URL;
+3. an optional live deployment URL;
+4. optional submission claims, one per line.
+
+Select **Run preflight** to generate the evidence register and final disposition.
+Completed reports can be downloaded as Markdown (`.md`).
+
+API docs remain available at:
+
+```text
+http://127.0.0.1:8000/docs
+```
+
+> Firestore is optional for the local quick start. Enable it only when you want
+> Google Cloud audit persistence.
+
 ## Runtime architecture
 
 ```text
