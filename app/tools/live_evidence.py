@@ -77,15 +77,50 @@ def _missing(
     )
 
 
+def _unverified_with_evidence(
+    requirement: ExtractedRequirement,
+    artifact: RepositoryArtifact,
+    reason: str,
+    action: str,
+) -> Finding:
+    return Finding(
+        requirement_id=requirement.requirement_id,
+        requirement_text=requirement.requirement_text,
+        requirement_type=requirement.requirement_type,
+        status=EvidenceStatus.UNVERIFIED,
+        severity=Severity.HIGH,
+        evidence=[_evidence_from_artifact(artifact)],
+        reason=reason,
+        recommended_action=action,
+    )
+
+
 def _firestore_evidence(observation: GoogleCloudObservation) -> Evidence:
     return Evidence(
         source="google_cloud",
         path_or_url=observation.resource,
         observed_value=(
             f"Verified {observation.service} operation in project "
-            f"{observation.project_id}: {observation.detail}"
+            f"{observation.project_id}: {observation.detail}; scope={observation.scope}"
         ),
     )
+
+
+def _framework_requirement_candidates(
+    text: str,
+    artifacts: dict[str, list[RepositoryArtifact]],
+) -> tuple[list[RepositoryArtifact], str] | None:
+    if "google adk" in text or "agent development kit" in text:
+        return artifacts.get("google_adk", []), "Google ADK"
+    if "genai sdk" in text or "google genai" in text or "google gen ai sdk" in text:
+        return artifacts.get("google_genai_sdk", []), "Google GenAI SDK"
+    if "genkit" in text:
+        return artifacts.get("google_genkit", []), "Google GenKit"
+    if "antigravity" in text:
+        return artifacts.get("google_antigravity", []), "Google Antigravity SDK"
+    if "google agent framework" in text or "google agentic framework" in text:
+        return artifacts.get("google_agent_framework", []), "supported Google agent framework"
+    return None
 
 
 def map_live_requirement(
@@ -181,17 +216,18 @@ def map_live_requirement(
             f"Primary Gemini model {artifact.observed_value} satisfies the 3.5+ requirement.",
         )
 
-    if "google agent framework" in text or "google adk" in text:
-        candidates = artifacts.get("google_adk", [])
+    framework_requirement = _framework_requirement_candidates(text, artifacts)
+    if framework_requirement is not None:
+        candidates, framework_label = framework_requirement
         if candidates:
             return _verified(
                 requirement,
                 candidates[0],
-                "Google ADK implementation evidence was found in the repository.",
+                f"{framework_label} implementation evidence was found in the repository.",
             )
         return _missing(
             requirement,
-            "No supported Google agent framework evidence was found.",
+            f"No {framework_label} implementation evidence was found.",
             "Add and use a supported Google agent framework, then rerun inspection.",
         )
 
@@ -223,7 +259,8 @@ def map_live_requirement(
                 severity=Severity.PASS,
                 evidence=[_firestore_evidence(cloud_infrastructure)],
                 reason=(
-                    "A live Google Cloud Firestore operation was verified for this inspection."
+                    "A live Google Cloud Firestore operation was accepted within the "
+                    "caller-established target evidence scope."
                 ),
                 recommended_action=None,
             )
@@ -241,7 +278,7 @@ def map_live_requirement(
                 "No live operation on a supported Google Cloud infrastructure service was verified."
             ),
             recommended_action=(
-                "Enable and verify a supported Google Cloud service such as Firestore, "
+                "Enable and verify a supported Google Cloud service for the target project, "
                 "or provide a reachable Cloud Run deployment."
             ),
         )
@@ -288,14 +325,25 @@ def map_live_requirement(
             ),
         )
 
-    if "architecture diagram" in text:
+    if "architecture diagram" in text or "architecture" in text and "diagram" in text:
         candidates = artifacts.get("architecture_artifact", [])
         if candidates:
             return _verified(
                 requirement,
                 candidates[0],
-                "Production architecture evidence was found.",
+                "Architecture content with multiple system/flow signals was found.",
             )
+
+        architecture_candidates = artifacts.get("architecture_candidate", [])
+        if architecture_candidates:
+            return _unverified_with_evidence(
+                requirement,
+                architecture_candidates[0],
+                "An architecture-like artifact exists, but Shipcheck could not verify its "
+                "content automatically. Filename alone is not treated as proof.",
+                "Review the artifact manually or add a text/Mermaid architecture diagram.",
+            )
+
         return _missing(
             requirement,
             "The rules require an architecture diagram, but none was found.",
