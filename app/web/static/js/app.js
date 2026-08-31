@@ -8,6 +8,14 @@ const reportContent = document.querySelector("#report-content");
 const reportPanel = document.querySelector("#report-panel");
 const findingsList = document.querySelector("#findings-list");
 const downloadButton = document.querySelector("#download-report");
+const highWarningLabel = document
+  .querySelector("#summary-warning")
+  ?.closest(".summary-cell")
+  ?.querySelector(".summary-label");
+
+if (highWarningLabel) {
+  highWarningLabel.textContent = "High / warning";
+}
 
 let latestReport = null;
 
@@ -115,7 +123,10 @@ function renderReport(report) {
   text("inspection-id", report.inspection_id);
   text("summary-passed", report.summary?.passed ?? 0);
   text("summary-manual", report.summary?.manual_review ?? 0);
-  text("summary-warning", report.summary?.warning ?? 0);
+  text(
+    "summary-warning",
+    `${report.summary?.high ?? 0} / ${report.summary?.warning ?? 0}`,
+  );
   text("summary-critical", report.summary?.critical ?? 0);
   text("model-used", report.model_used || "not reported");
   text("fallback-used", report.fallback_used ? "yes" : "no");
@@ -285,16 +296,19 @@ function reportAsMarkdown(report) {
     "## Inspection",
     "",
     `- **Inspection ID:** \`${markdownCode(report.inspection_id || "not reported")}\``,
+    `- **Timestamp:** \`${markdownCode(report.timestamp || "not reported")}\``,
+    `- **Agent version:** \`${markdownCode(report.agent_version || "not reported")}\``,
     `- **Rules source:** \`${markdownCode(report.rules_source || "not reported")}\``,
     `- **Repository:** \`${markdownCode(report.repository_url || "not reported")}\``,
     `- **Deployment:** ${report.deployment_url ? `\`${markdownCode(report.deployment_url)}\`` : "Not provided"}`,
-    `- **Model used:** \`${markdownCode(report.model_used || "not reported")}\``,
+    `- **Inspector model:** \`${markdownCode(report.model_used || "not reported")}\``,
     `- **Fallback used:** ${report.fallback_used ? "Yes" : "No"}`,
     "",
     "## Summary",
     "",
     `- **Verified:** ${summary.passed ?? 0}`,
     `- **Manual review:** ${summary.manual_review ?? 0}`,
+    `- **High:** ${summary.high ?? 0}`,
     `- **Warnings:** ${summary.warning ?? 0}`,
     `- **Critical:** ${summary.critical ?? 0}`,
     "",
