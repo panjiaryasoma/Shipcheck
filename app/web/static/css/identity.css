@@ -159,7 +159,7 @@
 @media (min-width: 1040px) {
   .input-panel {
     position: sticky;
-    top: 84px;
+    top: 0;
     height: max-content;
   }
 }
