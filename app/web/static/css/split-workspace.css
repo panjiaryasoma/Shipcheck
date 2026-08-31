@@ -1,0 +1,38 @@
+/* Desktop split-pane behavior: keep both inspection surfaces on one baseline. */
+
+@media (min-width: 1040px) {
+  .input-panel,
+  .report-panel {
+    position: sticky;
+    top: 84px;
+    max-height: calc(100vh - 104px);
+  }
+
+  .input-panel {
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-gutter: stable;
+  }
+
+  .report-panel {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .report-panel > .panel-heading {
+    flex: 0 0 auto;
+  }
+
+  .report-panel > .empty-report,
+  .report-panel > .report-content {
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-gutter: stable;
+  }
+
+  .report-panel > .report-content {
+    flex: 1 1 auto;
+  }
+}
