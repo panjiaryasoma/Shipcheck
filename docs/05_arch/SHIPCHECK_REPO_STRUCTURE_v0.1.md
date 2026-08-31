@@ -35,7 +35,18 @@ Shipcheck/
 │   ├── README.md
 │   └── v01/                       # first formal verification report set
 ├── scripts/                       # live smoke utilities
-├── submission/                    # submission-specific materials
+├── submission/
+│   ├── README.md                  # submission package index
+│   ├── checklist.md               # official requirements + completion state
+│   ├── demo-video-plan.md         # <= 4 minute demo plan
+│   ├── devpost/
+│   │   ├── form-fields.md         # paste-ready Devpost fields
+│   │   ├── elevator-pitch.md
+│   │   ├── project-story.md
+│   │   ├── links.md
+│   │   └── testing-instructions.md
+│   └── screenshots/
+│       └── README.md              # final capture plan
 ├── tests/
 │   ├── unit/
 │   ├── integration/
@@ -60,6 +71,7 @@ Shipcheck/
 - `app/web/` owns the inspection workspace and browser-side report export.
 - `docs/` owns design intent, contracts, architecture, and verification methodology.
 - `reports/` owns recorded outputs from actual verification runs.
+- `submission/` owns working hackathon copy, external-link tracking, demo planning, and submission evidence packaging.
 - `tests/` and `fixtures/` are first-class evidence for deterministic behavior.
 
 The ADK agent does not directly own repository inspection, deployment verification, claim checking, or final risk disposition. Those operations remain isolated deterministic services around the rules agent.
