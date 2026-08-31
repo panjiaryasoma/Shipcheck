@@ -10,6 +10,7 @@ from app.models.rules_extraction import LiveRulesRequest
 from app.models.schemas import InspectionRequest
 from app.services.inspection import inspect_fixture, inspect_live_submission
 from app.services.live_rules import AgentExtractionError, extract_requirements_with_adk
+from app.tools.deployment import DeploymentVerificationError
 from app.tools.github_repo import GitHubInspectionError
 from app.tools.live_rules import RulesFetchError
 
@@ -68,7 +69,7 @@ async def extract_rules_endpoint(payload: LiveRulesRequest):
 async def inspect_submission_endpoint(payload: InspectionRequest):
     try:
         result = await inspect_live_submission(payload)
-    except (RulesFetchError, GitHubInspectionError) as exc:
+    except (RulesFetchError, GitHubInspectionError, DeploymentVerificationError) as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except AgentExtractionError as exc:
         raise HTTPException(status_code=502, detail=str(exc)) from exc
