@@ -4,11 +4,13 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
+from pathlib import PurePosixPath
 from urllib.parse import quote, urlparse
 
 import httpx
 
 from app.core.config import settings
+from app.core.version import SHIPCHECK_USER_AGENT
 from app.models.repository_inspection import RepositoryArtifact
 
 GITHUB_API = "https://api.github.com"
@@ -21,6 +23,16 @@ _SELECTED_FILENAMES = {
     "pyproject.toml",
     "requirements.txt",
     "uv.lock",
+    "package.json",
+    "package-lock.json",
+    "pnpm-lock.yaml",
+    "yarn.lock",
+    "go.mod",
+    "go.sum",
+    "pom.xml",
+    "build.gradle",
+    "build.gradle.kts",
+    "gradle.properties",
     ".env.example",
     "dockerfile",
     "docker-compose.yml",
@@ -32,15 +44,44 @@ _SELECTED_FILENAMES = {
     "app.yaml",
 }
 
-_ARCHITECTURE_EXTENSIONS = {
-    ".png",
-    ".jpg",
-    ".jpeg",
+_DEPENDENCY_MANIFESTS = {
+    "pyproject.toml",
+    "requirements.txt",
+    "package.json",
+    "go.mod",
+    "pom.xml",
+    "build.gradle",
+    "build.gradle.kts",
+}
+
+_SOURCE_SUFFIXES = (
+    ".py",
+    ".js",
+    ".jsx",
+    ".mjs",
+    ".cjs",
+    ".ts",
+    ".tsx",
+    ".go",
+    ".java",
+    ".kt",
+    ".kts",
+)
+
+_ARCHITECTURE_TEXT_EXTENSIONS = {
     ".svg",
     ".md",
     ".mmd",
     ".mermaid",
 }
+
+_ARCHITECTURE_BINARY_EXTENSIONS = {
+    ".png",
+    ".jpg",
+    ".jpeg",
+}
+
+_ARCHITECTURE_EXTENSIONS = _ARCHITECTURE_TEXT_EXTENSIONS | _ARCHITECTURE_BINARY_EXTENSIONS
 
 _EXCLUDED_EVIDENCE_PREFIXES = (
     "fixtures/",
@@ -53,16 +94,44 @@ _SETUP_MARKERS = (
     "pip install",
     "python -m",
     "uv run",
+    "npm install",
+    "npm ci",
+    "pnpm install",
+    "yarn install",
+    "go run",
+    "go test",
+    "mvn test",
+    "gradle test",
+    "./gradlew",
     "docker build",
     "docker compose",
     "gcloud run deploy",
 )
 
-_ADK_MARKERS = (
-    "google-adk",
-    "from google.adk",
-    "import google.adk",
-)
+_GOOGLE_FRAMEWORK_MARKERS: dict[str, tuple[str, ...]] = {
+    "google_adk": (
+        "google-adk",
+        "from google.adk",
+        "import google.adk",
+    ),
+    "google_genai_sdk": (
+        "google-genai",
+        "google.genai",
+        "from google import genai",
+        "@google/genai",
+    ),
+    "google_genkit": (
+        "@genkit-ai/",
+        "from genkit",
+        "import genkit",
+        '"genkit"',
+    ),
+    "google_antigravity": (
+        "google.antigravity",
+        "@google/antigravity",
+        "antigravity-sdk",
+    ),
+}
 
 _GEMINI_MARKERS = (
     "gemini-3.7",
@@ -70,6 +139,7 @@ _GEMINI_MARKERS = (
     "gemini-3.5",
     "google.genai",
     "from google import genai",
+    "@google/genai",
 )
 
 _CLOUD_RUN_MARKERS = (
@@ -77,6 +147,16 @@ _CLOUD_RUN_MARKERS = (
     ".run.app",
     "cloud run service",
     "cloud run deployment",
+)
+
+_MODEL_ASSIGNMENT_PATTERNS = (
+    re.compile(
+        r"(?mi)^\s*(?![A-Z0-9_]*FALLBACK)[A-Z0-9_]*MODEL[A-Z0-9_]*\s*[:=]\s*[\"']?"
+        r"(gemini-[A-Za-z0-9_.-]+)"
+    ),
+    re.compile(
+        r"(?mi)\bmodel\s*[:=]\s*[\"'](gemini-[A-Za-z0-9_.-]+)[\"']"
+    ),
 )
 
 
@@ -118,7 +198,7 @@ def _headers() -> dict[str, str]:
     headers = {
         "Accept": "application/vnd.github+json",
         "X-GitHub-Api-Version": "2022-11-28",
-        "User-Agent": "Shipcheck/0.4.1",
+        "User-Agent": SHIPCHECK_USER_AGENT,
     }
 
     token = getattr(settings, "github_token", None)
@@ -204,7 +284,7 @@ def _is_architecture_path(path: str) -> bool:
     if "architecture" not in name and "architecture" not in lowered:
         return False
 
-    suffix = "." + name.rsplit(".", 1)[-1] if "." in name else ""
+    suffix = PurePosixPath(name).suffix
     return suffix in _ARCHITECTURE_EXTENSIONS
 
 
@@ -218,17 +298,87 @@ def _production_file_contents(
     }
 
 
+def _architecture_text_is_substantive(content: str) -> bool:
+    lowered = content.lower()
+    strong_markers = (
+        "```mermaid",
+        "flowchart ",
+        "graph td",
+        "graph lr",
+        "sequencediagram",
+        "<svg",
+        "--> ",
+        "->",
+    )
+    if any(marker in lowered for marker in strong_markers):
+        return True
+
+    component_markers = (
+        "web ui",
+        "frontend",
+        "backend",
+        "api",
+        "agent",
+        "service",
+        "database",
+        "firestore",
+        "runtime",
+        "cloud",
+        "tool",
+    )
+    return sum(marker in lowered for marker in component_markers) >= 3
+
+
 def _extract_primary_model(file_contents: dict[str, str]) -> tuple[str, str] | None:
-    for path, content in file_contents.items():
-        if path.lower().endswith(".env.example"):
-            match = re.search(
-                r"(?mi)^\s*SHIPCHECK_MODEL\s*=\s*([A-Za-z0-9_.-]+)\s*$",
-                content,
-            )
+    def priority(item: tuple[str, str]) -> tuple[int, str]:
+        path = item[0].lower()
+        name = path.rsplit("/", 1)[-1]
+        if name == ".env.example":
+            return (0, path)
+        if "config" in name or "settings" in name:
+            return (1, path)
+        return (2, path)
+
+    for path, content in sorted(file_contents.items(), key=priority):
+        for pattern in _MODEL_ASSIGNMENT_PATTERNS:
+            match = pattern.search(content)
             if match:
                 return path, match.group(1)
 
     return None
+
+
+def _framework_artifacts(file_contents: dict[str, str]) -> list[RepositoryArtifact]:
+    artifacts: list[RepositoryArtifact] = []
+
+    for framework_type, markers in _GOOGLE_FRAMEWORK_MARKERS.items():
+        matches = [
+            (path, marker)
+            for path, content in file_contents.items()
+            for marker in markers
+            if marker in content.lower()
+        ]
+        if not matches:
+            continue
+
+        path = matches[0][0]
+        observed = ", ".join(dict.fromkeys(marker for _, marker in matches))
+        artifacts.append(
+            RepositoryArtifact(
+                evidence_type=framework_type,
+                path=path,
+                observed_value=observed[:500],
+            )
+        )
+        artifacts.append(
+            RepositoryArtifact(
+                evidence_type="google_agent_framework",
+                path=path,
+                observed_value=f"{framework_type}: {observed[:420]}",
+            )
+        )
+
+    return artifacts
 
 
 def derive_artifacts(
@@ -238,9 +388,7 @@ def derive_artifacts(
 ) -> list[RepositoryArtifact]:
     artifacts: list[RepositoryArtifact] = []
 
-    production_paths = [
-        path for path in paths if not _is_excluded_evidence_path(path)
-    ]
+    production_paths = [path for path in paths if not _is_excluded_evidence_path(path)]
     production_contents = _production_file_contents(file_contents)
 
     artifacts.append(
@@ -252,22 +400,46 @@ def derive_artifacts(
     )
 
     for path in production_paths:
-        if _is_architecture_path(path):
+        if not _is_architecture_path(path):
+            continue
+
+        suffix = PurePosixPath(path.lower()).suffix
+        if suffix in _ARCHITECTURE_BINARY_EXTENSIONS:
+            artifacts.append(
+                RepositoryArtifact(
+                    evidence_type="architecture_candidate",
+                    path=path,
+                    observed_value=(
+                        "Architecture-like image filename found; binary content was not inspected."
+                    ),
+                )
+            )
+            continue
+
+        content = production_contents.get(path)
+        if content and _architecture_text_is_substantive(content):
             artifacts.append(
                 RepositoryArtifact(
                     evidence_type="architecture_artifact",
                     path=path,
-                    observed_value="architecture artifact present",
+                    observed_value="Architecture content contains multiple system/flow signals.",
+                )
+            )
+        else:
+            artifacts.append(
+                RepositoryArtifact(
+                    evidence_type="architecture_candidate",
+                    path=path,
+                    observed_value=(
+                        "Architecture-like path found, but content was not sufficient for an "
+                        "automatic pass."
+                    ),
                 )
             )
 
     lowered_paths = {path.lower(): path for path in production_paths}
     readme_path = next(
-        (
-            original
-            for lower, original in lowered_paths.items()
-            if lower == "readme.md"
-        ),
+        (original for lower, original in lowered_paths.items() if lower == "readme.md"),
         None,
     )
 
@@ -283,25 +455,23 @@ def derive_artifacts(
                 )
             )
 
-    combined_text = "\n".join(production_contents.values()).lower()
-
-    adk_hits = [marker for marker in _ADK_MARKERS if marker in combined_text]
-    if adk_hits:
-        path = next(
-            (
-                file_path
-                for file_path, content in production_contents.items()
-                if any(marker in content.lower() for marker in _ADK_MARKERS)
-            ),
-            "repository",
-        )
+    manifests = [
+        path
+        for path in production_paths
+        if path.rsplit("/", 1)[-1].lower() in _DEPENDENCY_MANIFESTS
+    ]
+    for path in manifests[:3]:
         artifacts.append(
             RepositoryArtifact(
-                evidence_type="google_adk",
+                evidence_type="dependency_manifest",
                 path=path,
-                observed_value=", ".join(adk_hits[:4]),
+                observed_value="Dependency manifest present",
             )
         )
+
+    artifacts.extend(_framework_artifacts(production_contents))
+
+    combined_text = "\n".join(production_contents.values()).lower()
 
     primary_model = _extract_primary_model(production_contents)
     if primary_model:
@@ -314,9 +484,7 @@ def derive_artifacts(
             )
         )
     else:
-        gemini_hits = [
-            marker for marker in _GEMINI_MARKERS if marker in combined_text
-        ]
+        gemini_hits = [marker for marker in _GEMINI_MARKERS if marker in combined_text]
         if gemini_hits:
             path = next(
                 (
@@ -334,9 +502,7 @@ def derive_artifacts(
                 )
             )
 
-    cloud_hits = [
-        marker for marker in _CLOUD_RUN_MARKERS if marker in combined_text
-    ]
+    cloud_hits = [marker for marker in _CLOUD_RUN_MARKERS if marker in combined_text]
     if cloud_hits:
         path = next(
             (
@@ -395,9 +561,7 @@ async def inspect_public_github_repository(url: str) -> dict:
             raise GitHubInspectionError("Unexpected GitHub repository response.")
 
         if bool(repo_payload.get("private")):
-            raise GitHubInspectionError(
-                "Private GitHub repositories are not supported in v0.4.1."
-            )
+            raise GitHubInspectionError("Private GitHub repositories are not supported.")
 
         default_branch = str(repo_payload.get("default_branch") or "main")
 
@@ -411,7 +575,7 @@ async def inspect_public_github_repository(url: str) -> dict:
 
     if tree_payload.get("truncated"):
         raise GitHubInspectionError(
-            "Repository tree is too large for bounded v0.4.1 inspection."
+            "Repository tree is too large for bounded inspection."
         )
 
     tree = tree_payload.get("tree") or []
@@ -422,28 +586,31 @@ async def inspect_public_github_repository(url: str) -> dict:
     ]
 
     selected_paths: list[str] = []
+    source_count = 0
     for path in paths:
         lowered_name = path.rsplit("/", 1)[-1].lower()
+        lower_path = path.lower()
 
-        if (
-            lowered_name in _SELECTED_FILENAMES
-            or _is_architecture_path(path)
-            or lowered_name.endswith(".py") and len(selected_paths) < 45
-        ):
+        if lowered_name in _SELECTED_FILENAMES or _is_architecture_path(path):
             selected_paths.append(path)
+            continue
 
-    selected_paths = list(dict.fromkeys(selected_paths))[:60]
+        if lower_path.endswith(_SOURCE_SUFFIXES) and source_count < 48:
+            selected_paths.append(path)
+            source_count += 1
+
+    selected_paths = list(dict.fromkeys(selected_paths))[:70]
 
     file_contents: dict[str, str] = {}
     async with httpx.AsyncClient(
         timeout=timeout,
-        headers={"User-Agent": "Shipcheck/0.4.1"},
+        headers={"User-Agent": SHIPCHECK_USER_AGENT},
         follow_redirects=False,
     ) as raw_client:
         for path in selected_paths:
             lower = path.lower()
 
-            if lower.endswith((".png", ".jpg", ".jpeg")):
+            if lower.endswith(tuple(_ARCHITECTURE_BINARY_EXTENSIONS)):
                 continue
 
             content = await _fetch_selected_file(
@@ -467,15 +634,13 @@ async def inspect_public_github_repository(url: str) -> dict:
         "repository": ref.repo,
         "default_branch": default_branch,
         "public": True,
-        "artifacts": [
-            artifact.model_dump(mode="json")
-            for artifact in artifacts
-        ],
+        "artifacts": [artifact.model_dump(mode="json") for artifact in artifacts],
         "inspected_files": sorted(file_contents),
         "notes": [
             f"Repository tree contained {len(paths)} bounded file entries.",
             f"Inspected {len(file_contents)} selected text files.",
             "Fixture/test paths are excluded from production evidence.",
+            "Architecture filenames alone do not receive an automatic pass.",
             "Container configuration is not treated as proof of live Cloud Run deployment.",
             "GitHub REST is used only for metadata/tree; file bodies use the public raw host.",
         ],
